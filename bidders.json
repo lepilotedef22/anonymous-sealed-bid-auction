@@ -1,0 +1,28 @@
+{
+  "bidders": [
+    {
+      "name": "bidder0",
+      "bid": 5
+    },
+    {
+      "name": "bidder1",
+      "bid": 7
+    },
+    {
+      "name": "bidder2",
+      "bid": 13
+    },
+    {
+      "name": "bidder3",
+      "bid": 8
+    },
+    {
+      "name": "bidder4",
+      "bid": 3
+    },
+    {
+      "name": "bidder5",
+      "bid": 10
+    }
+  ]
+}
