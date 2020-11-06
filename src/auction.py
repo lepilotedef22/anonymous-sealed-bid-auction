@@ -55,12 +55,14 @@ class Auction:
 
         logging.info('Deploying Auction smart contract on chain.')
         logging.info('Compiling smart contract source code into bytecode using solc.')
+        contract_path = Path.cwd() / 'contracts' / 'auction.sol'
+        logging.info(f'Contract path: {contract_path}.')
         compiled = compile_standard(
             {
                 'language': 'Solidity',
                 'sources': {
-                    'Auction.sol': {
-                        'urls': [str(Path.cwd() / 'contracts' / 'Auction.sol')]
+                    'auction.sol': {
+                        'urls': [str(contract_path)]
                     }
                 },
                 'settings': {
@@ -75,16 +77,16 @@ class Auction:
                     }
                 }
             },
-            allow_paths=str(Path.cwd() / 'contracts' / 'Auction.sol')
+            allow_paths=str(contract_path)
         )
         self.__w3.eth.defaultAccount = self.__w3.eth.accounts[0]  # First account is default account.
-        bytecode = compiled['contracts']['Auction.sol']['Auction']['evm']['bytecode']['object']
-        self.__abi = loads(compiled['contracts']['Auction.sol']['Auction']['metadata'])['output']['abi']
+        bytecode = compiled['contracts']['auction.sol']['Auction']['evm']['bytecode']['object']
+        self.__abi = loads(compiled['contracts']['auction.sol']['Auction']['metadata'])['output']['abi']
         logging.info('Creating temporary contract object.')
         temp_contract = self.__w3.eth.contract(abi=self.__abi,
                                                bytecode=bytecode)
         logging.info('Transacting contract on the chain.')
-        tx_hash = temp_contract.constructor(10, 10, 10, True).transact()
+        tx_hash = temp_contract.constructor().transact()
         logging.info(f'Transaction hash: {tx_hash.hex()}.')
         tx_receipt = self.__w3.eth.waitForTransactionReceipt(tx_hash)
         contract_address = tx_receipt.contractAddress
@@ -97,9 +99,12 @@ class Auction:
             'bytecode': bytecode,
             'contractAddress': contract_address
         }
+        compile_path = Path.cwd() / 'compile'
+        if not compile_path.exists():
+            compile_path.mkdir(parents=True, exist_ok=True)
         with open(Path.cwd() / 'compile' / 'out.json', 'w') as output_file:
             logging.info('Storing abi, bytecode and contract address in compile/out.json.')
-            dump(data, output_file)
+            dump(data, output_file, indent=4)
             logging.info('Abi, bytecode and address stored.')
         logging.info('Connecting to actual smart contract.')
 
