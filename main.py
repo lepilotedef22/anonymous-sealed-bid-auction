@@ -19,12 +19,10 @@ __date__ = '2020.3.4'
 
 
 if __name__ == '__main__':
-
     # Args parsing (credit: https://docs.python.org/fr/3/howto/argparse.html)
     parser = ArgumentParser(
         description='Anonymous hidden bidding proof of concept launcher'
     )
-
     parser.add_argument(
         '-l',
         '--log',
@@ -38,7 +36,6 @@ if __name__ == '__main__':
             'error',
             'critical'
         ])
-
     parser.add_argument(
         '-m',
         '--mode',
@@ -51,36 +48,26 @@ if __name__ == '__main__':
             'gas'
         ]
     )
-
     args = vars(parser.parse_args())
-
     # Logging (credit: https://docs.python.org/3/howto/logging.html)
-
     numeric_level = getattr(logging, args['log'].upper(), None)
     logging.basicConfig(format='%(levelname)s: %(filename)s: %(funcName)s(): %(message)s',
                         level=numeric_level)
     logging.getLogger('requests').setLevel(logging.WARNING)
     logging.getLogger('urllib3').setLevel(logging.WARNING)
     logging.getLogger('web3').setLevel(logging.WARNING)
-
     mode = args['mode']
     auction = Auction()
-
     try:
-
         if mode == 'deploy':
-
             auction.deploy()
 
         elif mode == 'gas':
-
             auction.estimate_gas()
 
         elif mode == 'poc':
-
             auction.proof_of_concept()
 
     except ConnectionError as e:
-
         print('Cannot connect to Ganache.')
         print('Make sure that Ganache is running and try again...')

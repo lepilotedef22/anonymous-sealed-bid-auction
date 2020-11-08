@@ -31,35 +31,28 @@ def get_bidders(bidder_file: Path,
     :param max_bid: max value of the bids.
     :return: List of Bidder.
     """
-
     if bidder_file.exists():
-
         logging.info(f'Parsing data file: {bidder_file}.')
         with open(bidder_file, 'r') as file:
-
             data = load(file)
             bidders = list(map(lambda bidder: Bidder(bidder['name'], bidder['bid']), data['bidders']))
             logging.debug(f'Bidders: {bidders}.')
             return bidders
 
     else:
-
         logging.info(f'Creating/updating {bidder_file}.')
         bids = []
         bidders = []
         for i in range(bidders_number):
-
             name = f'bidder{i}'
             bid = randint(min_bid, max_bid)
             while bid in bids:
-
                 bid = randint(min_bid, max_bid)
 
             bids.append(bid)
             bidders.append(Bidder(name, bid))
 
         with open(bidder_file, 'w') as file:
-
             data = {
                 'bidders': list(map(lambda bidder: {
                     'name': bidder.name,

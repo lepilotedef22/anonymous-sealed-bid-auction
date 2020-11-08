@@ -31,7 +31,6 @@ class Auction:
     # ------------------------------------------------- CONSTRUCTOR ------------------------------------------------- #
 
     def __init__(self) -> None:
-
         logging.info('Creating Auction object.')
         self.__w3 = Web3(Web3.HTTPProvider('http://127.0.0.1:7545'))
         self.__contract = None
@@ -41,6 +40,7 @@ class Auction:
         self.__bidders = []
         self.__thread_is_running = True
         self.__total_gas_cost = 0
+        self.__number_of_tx = 0
         logging.info('Auction object created.')
 
     # --------------------------------------------------- METHODS --------------------------------------------------- #
@@ -52,7 +52,6 @@ class Auction:
         Credit: https://web3py.readthedocs.io/en/stable/contracts.html
         Credit: https://github.com/ethereum/py-solc
         """
-
         logging.info('Deploying Auction smart contract on chain.')
         logging.info('Compiling smart contract source code into bytecode using solc.')
         contract_path = Path.cwd() / 'contracts' / 'auction.sol'
@@ -102,12 +101,13 @@ class Auction:
         compile_path = Path.cwd() / 'compile'
         if not compile_path.exists():
             compile_path.mkdir(parents=True, exist_ok=True)
+
         with open(Path.cwd() / 'compile' / 'out.json', 'w') as output_file:
             logging.info('Storing abi, bytecode and contract address in compile/out.json.')
             dump(data, output_file, indent=4)
             logging.info('Abi, bytecode and address stored.')
-        logging.info('Connecting to actual smart contract.')
 
+        logging.info('Connecting to actual smart contract.')
         self.__contract = self.__w3.eth.contract(address=contract_address,
                                                  abi=self.__abi)
         logging.info('Connected to smart contract.')
@@ -118,9 +118,7 @@ class Auction:
         """
         This method estimates the gas consumption of the functions of the contract.
         """
-
         if not self.__is_deployed:
-
             logging.info('Deploying smart contract.')
             self.deploy()
 
@@ -129,21 +127,16 @@ class Auction:
             'bytes': lambda: getrandbits(8 * 32).to_bytes(32, byteorder),
             'address': lambda: getrandbits(8 * 20).to_bytes(20, byteorder)
         }
-
         logging.info('Estimating gas consumption of smart contract functions.')
         print('\t--------------------------------------------')
         print('\t| Gas consumption of individual functions: |')
         print('\t--------------------------------------------')
         for smart_contract_function in self.__contract.all_functions():
-
             func_name = getattr(smart_contract_function, 'fn_name')
             logging.info(f'Function name: {func_name}.')
             for func_abi_dic in self.__abi:
-
                 try:
-
                     if func_abi_dic['name'] == func_name:
-
                         logging.info(f'Match found for function {func_name}.')
                         abi_inputs = func_abi_dic['inputs']
                         input_types = list(map(lambda arg: arg['type'], abi_inputs))
@@ -152,16 +145,13 @@ class Auction:
                                      f'{", ".join([f"{input_types[i]}={inputs[i]}" for i in range(len(inputs))])}')
                         func = self.__contract.functions[func_name]
                         try:
-
                             gas = func(*inputs).estimateGas()
                             print(f'{func_name}({", ".join(input_types)}): {gas} gas.')
 
                         except ValueError:
-
                             logging.info('Passed inputs are not accepted by the function.')
 
                 except KeyError:
-
                     pass
 
         logging.info('Gas consumption estimated.')
@@ -170,9 +160,7 @@ class Auction:
         """
         This method implements the proof of concept.
         """
-
         if not self.__is_deployed:
-
             logging.info('Deploying smart contract.')
             self.deploy()
 
@@ -376,19 +364,17 @@ class Auction:
         :param args: Argument to be passed to the function.
         :param transaction: Transaction data.
         """
-
         if func_name is not None:
-
             logging.info(f'Executing function {func_name}.')
             tx_hash = self.__contract.functions[func_name](*args).transact(transaction)
 
         else:
-
             logging.info('Executing transaction.')
             tx_hash = self.__w3.eth.sendTransaction(transaction)
 
         logging.info(f'Transaction hash: {tx_hash.hex()}.')
         self.__gas_cost(tx_hash)
+        self.__number_of_tx += 1
 
     def __gas_cost(self,
                    tx_hash: HexBytes
@@ -397,7 +383,6 @@ class Auction:
         Adds the gas cost of the transaction to self.__total_gas_cost.
         :param tx_hash: Hash of the transaction whose gas cost should be added.
         """
-
         tx_receipt = self.__w3.eth.waitForTransactionReceipt(tx_hash)
         gas_used = tx_receipt.gasUsed
         logging.info(f'Gas used for transaction {tx_hash.hex()}: {gas_used} gas.')
