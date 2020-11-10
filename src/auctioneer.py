@@ -4,10 +4,11 @@
 # ----------------------------------------------------- IMPORTS ----------------------------------------------------- #
 
 import logging
-from typing import Optional
+from typing import Optional, List
+from Crypto.PublicKey import RSA
 
 from src.participant import Participant
-from src.utils.crypto import decrypt
+from src.utils.crypto import decrypt, verify
 
 
 __author__ = 'Denis Verstraeten'
@@ -29,7 +30,6 @@ class Auctioneer(Participant):
         :param address: Address of the auctioneer.
         :param generate_new_keys: Flag indicating whether new RSA keys need to be generated.
         """
-
         logging.info('Creating auctioneer.')
         super().__init__(address, generate_new_keys)
         self.bidders = {}
@@ -43,15 +43,27 @@ class Auctioneer(Participant):
         Uses RSA to decrypt cipher text.
         :return: Plain text.
         """
-
         logging.debug(f'Cipher text: {cipher.hex()}.')
         plain = decrypt(cipher, self._RSA_key)
         logging.debug(f'Plain text: {plain}.')
         return plain
 
+    def verify(self,
+               msg: bytes,
+               sig: bytes,
+               ring: List[RSA.RsaKey]
+               ) -> bool:
+        """
+        Verifies that a message msg has valid signature sig.
+        :param msg: Signed message.
+        :param sig: Ring signature.
+        :param ring: Ring of keys to be used to check the validity of the signature.
+        :return: Validity of signature.
+        """
+        return verify(sig, msg, ring)
+
     def __repr__(self) -> str:
         """
         :return: str representation of Auctioneer.
         """
-
         return f'Auctioneer(address: {self.address})'

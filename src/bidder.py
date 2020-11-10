@@ -4,12 +4,13 @@
 # ----------------------------------------------------- IMPORTS ----------------------------------------------------- #
 
 import logging
-from typing import Optional
-from random import randint
+from typing import Optional, List
+from random import randint, sample, shuffle
 from sys import byteorder
+from Crypto.PublicKey import RSA
 
 from src.participant import Participant
-from src.utils.crypto import commit, encrypt
+from src.utils.crypto import commit, encrypt, sign
 
 
 __author__ = 'Denis Verstraeten'
@@ -41,56 +42,37 @@ class Bidder(Participant):
         self.name = name
         self.bid = bid
         self.auctioneer_pub_key = None
-        self.r_i = None
-        self.c_i = None
-        self.sigma_i = None
-        self.Sigma_i = None
-        self.C_i1 = None
-        self.r_i1 = None
-        self.com_i1 = None
-        self.delta_i = None
-        self.C_i2 = None
-        self.r_i2 = None
-        self.com_i2 = None
+        self.ring = None
+        self.s = None
         logging.info('Bidder created.')
 
     # --------------------------------------------------- METHODS --------------------------------------------------- #
 
-    def generate_commitments(self) -> None:
+    def make_ring(self,
+                  keys: List[RSA.RsaKey]
+                  ) -> None:
         """
-        Generates the different commitments that needs to be sent to the blockchain.
-        It is advised to read this along the paper to get a better understanding of the variable names.
+        Builds a ring of possible signers.
+        :param keys: Keys from which the ring is constructed.
+        """
+        logging.info('Making ring for bidder.')
+        self.ring = [self.public_key, self.auctioneer_pub_key]
+        self.ring.extend(sample(list(filter(
+            lambda key: key != self.public_key and key != self.auctioneer_pub_key, keys)), randint(0, len(keys) - 2)))
+        shuffle(self.ring)
+        self.s = self.ring.index(self.public_key)
+        logging.info(f'Ring of size {len(self.ring)} created. s = {self.s}.')
+
+    def sign(self,
+             msg: bytes
+             ) -> bytes:
+        """
+        Signs a message msg using a ring signature scheme.
+        :param msg: Message to be signed.
+        :return: Signature: List[int].
         """
 
-        self.r_i = randint(0, 2*256 - 1).to_bytes(int(256 / 8), byteorder)
-        logging.debug(f'r_i = {int.from_bytes(self.r_i, byteorder)}.')
-        self.c_i = commit(self.bid.to_bytes(int(256 / 8), byteorder), self.r_i)
-        logging.debug(f'c_i = {self.c_i.hex()}.')
-        self.sigma_i = self.sign(self.c_i)
-        logging.debug(f'sigma_i = {self.sigma_i.hex()}.')
-        self.Sigma_i = self.sign(self.c_i + self.sigma_i)
-        logging.debug(f'Sigma_i = {self.Sigma_i.hex()}.')
-        self.C_i1 = encrypt(
-            self.c_i + self.sigma_i + self.Sigma_i + self.bid.to_bytes(int(256 / 8), byteorder) + self.r_i,
-            self.auctioneer_pub_key
-        )
-        logging.debug(f'C_i1 = {self.C_i1.hex()}.')
-        self.r_i1 = randint(0, 2*256 - 1).to_bytes(int(256 / 8), byteorder)
-        logging.debug(f'r_i1 = {int.from_bytes(self.r_i1, byteorder)}.')
-        self.com_i1 = commit(self.C_i1, self.r_i1)
-        logging.debug(f'com_i1 = {self.com_i1.hex()}.')
-        self.delta_i = self.sign(self.c_i + self.sigma_i + self.Sigma_i)
-        logging.debug(f'delta_i = {self.delta_i.hex()}.')
-        self.C_i2 = encrypt(
-            self.c_i + self.public_key.export_key() + self.auctioneer_pub_key.export_key() + self.Sigma_i +
-            self.delta_i,
-            self.auctioneer_pub_key
-        )
-        logging.debug(f'C_i2 = {self.C_i2.hex()}.')
-        self.r_i2 = randint(0, 2*256 - 1).to_bytes(int(256 / 8), byteorder)
-        logging.debug(f'r_i2 = {int.from_bytes(self.r_i2, byteorder)}')
-        self.com_i2 = commit(self.C_i2, self.r_i2)
-        logging.debug(f'com_i2 = {self.com_i2.hex()}.')
+        return sign(self.ring, self.s, msg)
 
     def __repr__(self) -> str:
         """

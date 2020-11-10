@@ -15,8 +15,6 @@ from hexbytes import HexBytes
 
 from src.auctioneer import Auctioneer
 from src.utils.file_helper import get_bidders
-from src.bidder import Bidder
-from src.utils.crypto import commit
 
 
 __author__ = 'Denis Verstraeten'
@@ -160,21 +158,25 @@ class Auction:
         """
         This method implements the proof of concept.
         """
+        # --- Deploying Smart Contract --- #
         if not self.__is_deployed:
             logging.info('Deploying smart contract.')
             self.deploy()
 
-        # Generating auctioneer and bidders
+        # --- Generating auctioneer and bidders --- #
         self.__auctioneer = Auctioneer(address=self.__w3.eth.defaultAccount)
         logging.info(f'Auctioneer created: {self.__auctioneer}.')
         self.__bidders = get_bidders(Path('bidders.json'))  # If new file is created,
         # max number of bidders must be < number of accounts on the blockchain.
+        pub_keys = list(map(lambda b: b.public_key, self.__bidders))
+        pub_keys.append(self.__auctioneer.public_key)
         bidder_addresses = sample(self.__w3.eth.accounts[1:], len(self.__bidders))
         # Randomly picks n = len(self.__bidders) addresses out of the accounts list.
         # Element zero is excluded because it is auctioneer address.
         for (index, bidder) in enumerate(self.__bidders):
             bidder.address = bidder_addresses[index]
             bidder.auctioneer_pub_key = self.__auctioneer.public_key
+            bidder.make_ring(pub_keys)
 
         logging.debug(f'Bidders created: {self.__bidders}.')
 
