@@ -8,7 +8,7 @@ from pathlib import Path
 from web3 import Web3
 from json import loads, dump
 from solc import compile_standard
-from random import randint, getrandbits, sample, shuffle
+from random import randint, getrandbits, sample
 from sys import byteorder
 from typing import Optional
 from hexbytes import HexBytes
@@ -179,6 +179,10 @@ class Auction:
             bidder.make_ring(pub_keys)
 
         logging.debug(f'Bidders created: {self.__bidders}.')
+
+        # --- Placing bids --- #
+        for bidder in self.__bidders:
+            bidder.bid()
 
     def __send_transaction(self,
                            transaction,

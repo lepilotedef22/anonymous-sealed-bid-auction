@@ -4,7 +4,7 @@
 # ----------------------------------------------------- IMPORTS ----------------------------------------------------- #
 
 import logging
-from typing import Union, List
+from typing import Union, List, Tuple
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from hashlib import sha256
@@ -216,19 +216,13 @@ def __RSA_mult(x: int,
 
 # SHA256 based commitment
 def commit(msg: bytes,
-           r: bytes
-           ) -> bytes:
+           ) -> Tuple[bytes, bytes]:
     """
     Commits to a message. Uses sha256: c = sha256(msg||r).
     :param msg: Message to be committed.
-    :param r: Random value.
     :return: Commitment.
     """
-
-    if len(r) > int(256 / 8):
-
-        raise ValueError('Random value too big. It should be a 256 bits integer.')
-
+    r = randint(0, 2**256 - 1).to_bytes(int(256 / 8), byteorder)
     c = sha256(msg + r).digest()
-    logging.debug(f'Commitment: c = {c.hex()}.')
-    return c
+    logging.debug(f'Commitment: c = {c.hex()}, r = {r.hex()}.')
+    return c, r
