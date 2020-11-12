@@ -17,6 +17,10 @@ __author__ = 'Denis Verstraeten'
 __date__ = '2020.3.9'
 
 
+# --- Constants --- #
+SEP = b' - '
+
+
 # RSA encryption/decryption
 def encrypt(plain: Union[str, bytes],
             key: RSA.RsaKey
@@ -226,3 +230,22 @@ def commit(msg: bytes,
     c = sha256(msg + r).digest()
     logging.debug(f'Commitment: c = {c.hex()}, r = {r.hex()}.')
     return c, r
+
+
+# Bytes strings concatenation / parsing
+def concatenate(*bytes_str: bytes
+                ) -> bytes:
+    """"
+    :param bytes_str: Bytes strings to concatenate.
+    :return: The concatenation of the bytes strings bytes_string.
+    """
+    return SEP.join(bytes_str)
+
+
+def parse(msg: bytes
+          ) -> Tuple[bytes, ...]:
+    """
+    :param msg: Message to be parsed.
+    :return: A tuple containing the pieces of the parsed message.
+    """
+    return tuple(msg.split(SEP))
