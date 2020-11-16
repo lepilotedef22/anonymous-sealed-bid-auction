@@ -10,7 +10,7 @@ from Crypto.PublicKey import RSA
 from sys import byteorder
 
 from src.participant import Participant
-from src.utils.crypto import sign, commit, encrypt
+from src.utils.crypto import sign, commit, encrypt, concatenate
 
 __author__ = 'Denis Verstraeten'
 __date__ = '2020.3.6'
@@ -43,17 +43,17 @@ class Bidder(Participant):
         self.auctioneer_pub_key = None
         self.__ring = None
         self.__s = None
-        self.__c = None
+        self.c = None
         self.__d = None
-        self.__sigma = None
+        self.sigma = None
         self.__Sigma = None
-        self.__C1 = None
-        self.__c1 = None
-        self.__d1 = None
+        self.C1 = None
+        self.c1 = None
+        self.d1 = None
         self.__delta = None
-        self.__C2 = None
-        self.__c2 = None
-        self.__d2 = None
+        self.C2 = None
+        self.c2 = None
+        self.d2 = None
         logging.info('Bidder created.')
 
     # --------------------------------------------------- METHODS --------------------------------------------------- #
@@ -81,25 +81,26 @@ class Bidder(Participant):
         """
         logging.info('Generating bid.')
         logging.info('Computing c and d.')
-        self.__c, self.__d = commit(self.__bid_value.to_bytes(int(256 / 8), byteorder))
+        self.c, self.__d = commit(self.__bid_value.to_bytes(int(256 / 8), byteorder))
         logging.info('Computing sigma.')
-        self.__sigma = self.__sign(self.__c)
+        self.sigma = self.__sign(self.c)
         logging.info('Computing Sigma.')
-        self.__Sigma = self.__sign(self.__c + self.__sigma)
+        self.__Sigma = self.__sign(self.c + self.sigma)
         logging.info('Computing C1.')
-        self.__C1 = self.__encrypt(self.__c + self.__sigma + self.__Sigma + self.__d)
+        self.C1 = self.__encrypt(self.c + self.sigma + self.__Sigma + self.__d)
         logging.info('Computing c1 and d1.')
-        self.__c1, self.__d1 = commit(self.__C1)
+        self.c1, self.d1 = commit(self.C1)
         logging.info('Computing delta.')
-        self.__delta = self.__sign2(self.__c + self.__sigma + self.__Sigma)
+        self.__delta = self.__sign2(self.c + self.sigma + self.__Sigma)
         logging.info('Computing C2.')
-        m2 = self.__c + self.public_key.exportKey() + self.auctioneer_pub_key.exportKey() + self.__sigma + \
+        m2 = self.c + self.public_key.exportKey() + self.auctioneer_pub_key.exportKey() + self.sigma + \
             self.__Sigma + self.__delta
-        self.__C2 = self.__encrypt(m2)
+        self.C2 = self.__encrypt(m2)
         logging.info('Computing c2 and d2.')
-        self.__c2, self.__d2 = commit(self.__C2)
+        self.c2, self.d2 = commit(self.C2)
         logging.info('Bid generated.')
-        return self.__c, self.__sigma + self.__c1 + self.__c2, self.__C1 + self.__d1, self.__C2 + self.__d2
+        return self.c, concatenate(self.sigma, self.c1, self.c2), concatenate(self.C1, self.d1),\
+            concatenate(self.C2, self.d2)
 
     def __sign(self,
                msg: bytes
