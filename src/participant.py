@@ -32,18 +32,12 @@ class Participant(ABC):
         :param address: Address of the Participant.
         :param generate_new_keys: Flag indicating whether new RSA keys need to be generated.
         """
-
         logging.info('Creating Participant.')
         self.address = address
         if generate_new_keys:
-
             self._RSA_key = RSA.generate(2048)
             self.public_key = self._RSA_key.publickey()
 
         else:
-
             self._RSA_key = None
             self.public_key = None
-
-        self._ring = None  # List of public keys used for the ring signature scheme.
-        self._s = None  # Index of the Participant in the ring. self._ring[s] = self.public_key.

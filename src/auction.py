@@ -182,7 +182,9 @@ class Auction:
 
         # --- Placing bids --- #
         for bidder in self.__bidders:
-            bidder.bid()
+            c, sigma = bidder.bid()
+            tau_1 = bidder.get_bid_opening_token()
+            self.__auctioneer.bid_opening(bidder.address, bidder.ring, c, sigma, tau_1)
 
     def __send_transaction(self,
                            transaction,

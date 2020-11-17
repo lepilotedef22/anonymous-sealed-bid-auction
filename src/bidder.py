@@ -41,7 +41,7 @@ class Bidder(Participant):
         self.__name = name
         self.__bid_value = bid
         self.auctioneer_pub_key = None
-        self.__ring = None
+        self.ring = None
         self.__s = None
         self.c = None
         self.__d = None
@@ -66,14 +66,14 @@ class Bidder(Participant):
         :param keys: Keys from which the ring is constructed.
         """
         logging.info('Making ring for bidder.')
-        self.__ring = [self.public_key, self.auctioneer_pub_key]
-        self.__ring.extend(sample(list(filter(
+        self.ring = [self.public_key, self.auctioneer_pub_key]
+        self.ring.extend(sample(list(filter(
             lambda key: key != self.public_key and key != self.auctioneer_pub_key, keys)), randint(0, len(keys) - 2)))
-        shuffle(self.__ring)
-        self.__s = self.__ring.index(self.public_key)
-        self.__ring[self.__s] = self._RSA_key
-        logging.info(f'Ring of size {len(self.__ring)} created. s = {self.__s}.')
-        logging.debug(f'Ring: {self.__ring}.')
+        shuffle(self.ring)
+        self.__s = self.ring.index(self.public_key)
+        self.ring[self.__s] = self._RSA_key
+        logging.info(f'Ring of size {len(self.ring)} created. s = {self.__s}.')
+        logging.debug(f'Ring: {self.ring}.')
 
     def bid(self) -> Tuple[bytes, bytes]:
         """
@@ -122,7 +122,7 @@ class Bidder(Participant):
         :param msg: Message to be signed.
         :return: Signature: List[int].
         """
-        return sign(self.__ring, self.__s, msg)
+        return sign(self.ring, self.__s, msg)
 
     def __sign2(self,
                 msg: bytes

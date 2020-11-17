@@ -95,7 +95,7 @@ class Auctioneer(Participant):
                 if c_tilde == c and sigma_tilde == sigma:
                     if self.verify(c + sigma, Sigma, ring):
                         logging.info('Signature Sigma verified.')
-                        if commit_verify(bid, c, d):
+                        if commit_verify(bid, d, c):
                             logging.info('Commitment to bid successfully verified.')
                             logging.info('Storing bid and validating opening.')
                             self.bidders[address] = {
