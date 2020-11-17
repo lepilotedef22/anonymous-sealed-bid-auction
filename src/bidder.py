@@ -75,7 +75,7 @@ class Bidder(Participant):
         logging.info(f'Ring of size {len(self.__ring)} created. s = {self.__s}.')
         logging.debug(f'Ring: {self.__ring}.')
 
-    def bid(self) -> Tuple[bytes, bytes, bytes, bytes]:
+    def bid(self) -> Tuple[bytes, bytes]:
         """
         :return: Commitments and signatures to the bid to be placed.
         """
@@ -87,20 +87,32 @@ class Bidder(Participant):
         logging.info('Computing Sigma.')
         self.__Sigma = self.__sign(self.c + self.sigma)
         logging.info('Computing C1.')
-        self.C1 = self.__encrypt(self.c + self.sigma + self.__Sigma + self.__d)
+        self.C1 = self.__encrypt(concatenate(self.c, self.sigma, self.__Sigma,
+                                             self.__bid_value.to_bytes(int(256 / 8), byteorder), self.__d))
         logging.info('Computing c1 and d1.')
         self.c1, self.d1 = commit(self.C1)
         logging.info('Computing delta.')
         self.__delta = self.__sign2(self.c + self.sigma + self.__Sigma)
         logging.info('Computing C2.')
-        m2 = self.c + self.public_key.exportKey() + self.auctioneer_pub_key.exportKey() + self.sigma + \
-            self.__Sigma + self.__delta
+        m2 = concatenate(self.c, self.public_key.exportKey(), self.auctioneer_pub_key.exportKey(), self.sigma,
+                         self.__Sigma, self.__delta)
         self.C2 = self.__encrypt(m2)
         logging.info('Computing c2 and d2.')
         self.c2, self.d2 = commit(self.C2)
         logging.info('Bid generated.')
-        return self.c, concatenate(self.sigma, self.c1, self.c2), concatenate(self.C1, self.d1),\
-            concatenate(self.C2, self.d2)
+        return self.c, concatenate(self.sigma, self.c1, self.c2)
+
+    def get_bid_opening_token(self) -> bytes:
+        """
+        :return: The bid opening token tau_1 made of C_1||d_1.
+        """
+        return concatenate(self.C1, self.d1)
+
+    def get_identity_opening_token(self) -> bytes:
+        """
+        :return: The identity opening token tau_2 made of C_2||d_2.
+        """
+        return concatenate(self.C2, self.d2)
 
     def __sign(self,
                msg: bytes

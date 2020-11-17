@@ -6,9 +6,10 @@
 import logging
 from typing import Optional, List
 from Crypto.PublicKey import RSA
+from sys import byteorder
 
 from src.participant import Participant
-from src.utils.crypto import decrypt, verify
+from src.utils.crypto import decrypt, verify, parse, commit_verify
 
 
 __author__ = 'Denis Verstraeten'
@@ -61,6 +62,50 @@ class Auctioneer(Participant):
         :return: Validity of signature.
         """
         return verify(sig, msg, ring)
+
+    def bid_opening(self,
+                    address: str,
+                    ring: List[RSA.RsaKey],
+                    c: bytes,
+                    sigma: bytes,
+                    tau_1: bytes
+                    ) -> bool:
+        """
+        Opens the bid value for bidder at address and stores it.
+        :param address: Address of the bidder.
+        :param ring: Ring of public keys used by the bidder for the Ring Signature.
+        :param c: Commitment to the bid.
+        :param sigma: Ring Signature to the bid.
+        :param tau_1: Bid opening token.
+        :return: Whether th bid opening was successful.
+        """
+        logging.info(f'Opening bid for bidder at {address}.')
+        status = False
+        logging.info('Parsing sigma.')
+        sigma, c1, c2 = parse(sigma)
+        if self.verify(c, sigma, ring):
+            logging.info('Signature sigma successfully verified.')
+            C1, d1 = parse(tau_1)
+            if commit_verify(C1, d1, c1):
+                logging.info('Commitment C1 successfully verified.')
+                m1 = self.decrypt(C1)
+                logging.info('Cipher text C1 decrypted.')
+                logging.info('Parsing m1.')
+                c_tilde, sigma_tilde, Sigma, bid, d = parse(m1)
+                if c_tilde == c and sigma_tilde == sigma:
+                    if self.verify(c + sigma, Sigma, ring):
+                        logging.info('Signature Sigma verified.')
+                        if commit_verify(bid, c, d):
+                            logging.info('Commitment to bid successfully verified.')
+                            logging.info('Storing bid and validating opening.')
+                            self.bidders[address] = {
+                                'bid': int.from_bytes(bid, byteorder),
+                                'd': d
+                            }
+                            logging.info(f'Bid: {int.from_bytes(bid, byteorder)}.')
+                            status = True
+
+        return status
 
     def __repr__(self) -> str:
         """

@@ -41,7 +41,7 @@ class CryptoTest(TestCase):
         """
         Tests whether Dec(Enc(x)) = x for len(x) > 2048 bits.
         """
-        msg = reduce(bytes.__add__, [b'a' for _ in range(int(5000 / 8))])  # One character is one byte
+        msg = b''.join([b'a' for _ in range(int(5000 / 8))])  # One character is one byte
         cipher = encrypt(msg, CryptoTest.key)
         plain = decrypt(cipher, CryptoTest.key)
         self.assertEqual(msg, plain)

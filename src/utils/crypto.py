@@ -232,6 +232,21 @@ def commit(msg: bytes,
     return c, r
 
 
+def commit_verify(msg: bytes,
+                  random: bytes,
+                  commitment: bytes
+                  ) -> bool:
+    """
+    Checks whether commitment is a valid commitment for message msg with randomness random.
+    :param msg: Committed message.
+    :param random: Randomness used for the commitment.
+    :param commitment: Commitment to be checked.
+    :return: Check status.
+    """
+    logging.debug('Checking commitment.')
+    return commitment == sha256(msg + random).digest()
+
+
 # Bytes strings concatenation / parsing
 def concatenate(*bytes_str: bytes
                 ) -> bytes:
