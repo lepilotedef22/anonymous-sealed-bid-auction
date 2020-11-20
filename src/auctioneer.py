@@ -34,6 +34,8 @@ class Auctioneer(Participant):
         logging.info('Creating auctioneer.')
         super().__init__(address, generate_new_keys)
         self.bidders = {}
+        self.winning_com = None
+        self.winning_bidder = None
 
     # --------------------------------------------------- METHODS --------------------------------------------------- #
 
@@ -104,6 +106,39 @@ class Auctioneer(Participant):
                             }
                             logging.info(f'Bid: {int.from_bytes(bid, byteorder)}.')
                             status = True
+
+        return status
+
+    def identity_opening(self,
+                         sigma: bytes,
+                         tau_2
+                         ) -> bool:
+        """
+        Opens the identity of the winning bidder, checks its validity and stores it.
+        :param sigma: Ring signature.
+        :param tau_2: Identity opening token.
+        :return: Verification status of the opening.
+        """
+        logging.info('Opening identity if winning bidder.')
+        status = False
+        logging.info('Parsing sigma.')
+        sigma, c1, c2 = parse(sigma)
+        logging.info('Parsing tau_2.')
+        C2, d2 = parse(tau_2)
+        if commit_verify(C2, d2, c2):
+            logging.info('Commitment c2 successfully verified.')
+            m2 = self.decrypt(C2)
+            logging.info('C2 decrypted.')
+            c, pub_key_winner, pub_key_auctioneer, sigma, Sigma, delta = parse(m2)
+            pub_key_winner = RSA.importKey(pub_key_winner)
+            pub_key_auctioneer = RSA.importKey(pub_key_auctioneer)
+            if c == self.winning_com:
+                logging.info('Commitment c successfully verified.')
+                if self.verify(c + sigma + Sigma, delta, [pub_key_winner, pub_key_auctioneer]):
+                    logging.info('Signature delta successfully verified.')
+                    self.winning_bidder = pub_key_winner
+                    logging.info(f'Winning bidder: {self.winning_bidder}.')
+                    status = True
 
         return status
 

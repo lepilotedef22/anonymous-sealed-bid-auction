@@ -264,3 +264,18 @@ def parse(msg: bytes
     :return: A tuple containing the pieces of the parsed message.
     """
     return tuple(msg.split(SEP))
+
+
+# ZKP
+def verifiable_auction(bids: List[int],
+                       com: List[bytes],
+                       decom: List[bytes]
+                       ) -> Tuple[bytes, bool]:
+    """
+    Zero knowledge proof for the computation of the winnig bidder. TODO implement using ZKP.
+    :param bids:
+    :param com:
+    :param decom:
+    :return:
+    """
+    raise NotImplementedError
