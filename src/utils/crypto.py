@@ -272,7 +272,7 @@ def verifiable_auction(bids: List[int],
                        decom: List[bytes]
                        ) -> Tuple[bytes, bool]:
     """
-    Zero knowledge proof for the computation of the winnig bidder. TODO implement using ZKP.
+    Zero knowledge proof for the computation of the winning bidder. TODO implement using ZKP.
     :param bids:
     :param com:
     :param decom:

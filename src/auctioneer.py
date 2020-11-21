@@ -39,32 +39,6 @@ class Auctioneer(Participant):
 
     # --------------------------------------------------- METHODS --------------------------------------------------- #
 
-    def decrypt(self,
-                cipher: bytes
-                ) -> bytes:
-        """
-        Uses RSA to decrypt cipher text.
-        :return: Plain text.
-        """
-        logging.debug(f'Cipher text: {cipher.hex()}.')
-        plain = decrypt(cipher, self._RSA_key)
-        logging.debug(f'Plain text: {plain}.')
-        return plain
-
-    def verify(self,
-               msg: bytes,
-               sig: bytes,
-               ring: List[RSA.RsaKey]
-               ) -> bool:
-        """
-        Verifies that a message msg has valid signature sig.
-        :param msg: Signed message.
-        :param sig: Ring signature.
-        :param ring: Ring of keys to be used to check the validity of the signature.
-        :return: Validity of signature.
-        """
-        return verify(sig, msg, ring)
-
     def bid_opening(self,
                     address: str,
                     ring: List[RSA.RsaKey],
@@ -102,7 +76,8 @@ class Auctioneer(Participant):
                             logging.info('Storing bid and validating opening.')
                             self.bidders[address] = {
                                 'bid': int.from_bytes(bid, byteorder),
-                                'd': d
+                                'com': c,
+                                'decom': d
                             }
                             logging.info(f'Bid: {int.from_bytes(bid, byteorder)}.')
                             status = True
@@ -141,6 +116,51 @@ class Auctioneer(Participant):
                     status = True
 
         return status
+
+    def get_winning_bid(self) -> None:
+        """
+        TEMPORARY METHOD !!! Will be deleted once ZKP is implemented.
+        Gets the winning bid value and the winning commitment.
+        """
+        logging.info('Getting winning bid.')
+        max_bid = 0
+        for bidder in self.bidders.values():
+            x = bidder['bid']
+            c = bidder['com']
+            d = bidder['decom']
+            if not commit_verify(x.to_bytes(int(256 / 8), byteorder), d, c):
+                logging.info('Commit verification failed.')
+                continue
+
+            if x > max_bid:
+                max_bid = x
+                self.winning_com = c
+
+    def decrypt(self,
+                cipher: bytes
+                ) -> bytes:
+        """
+        Uses RSA to decrypt cipher text.
+        :return: Plain text.
+        """
+        logging.debug(f'Cipher text: {cipher.hex()}.')
+        plain = decrypt(cipher, self._RSA_key)
+        logging.debug(f'Plain text: {plain}.')
+        return plain
+
+    def verify(self,
+               msg: bytes,
+               sig: bytes,
+               ring: List[RSA.RsaKey]
+               ) -> bool:
+        """
+        Verifies that a message msg has valid signature sig.
+        :param msg: Signed message.
+        :param sig: Ring signature.
+        :param ring: Ring of keys to be used to check the validity of the signature.
+        :return: Validity of signature.
+        """
+        return verify(sig, msg, ring)
 
     def __repr__(self) -> str:
         """
