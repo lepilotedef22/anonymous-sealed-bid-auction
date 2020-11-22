@@ -54,6 +54,7 @@ class Bidder(Participant):
         self.C2 = None
         self.c2 = None
         self.d2 = None
+        self.sig = None
         logging.info('Bidder created.')
 
     # --------------------------------------------------- METHODS --------------------------------------------------- #
@@ -100,7 +101,8 @@ class Bidder(Participant):
         logging.info('Computing c2 and d2.')
         self.c2, self.d2 = commit(self.C2)
         logging.info('Bid generated.')
-        return self.c, concatenate(self.sigma, self.c1, self.c2)
+        self.sig = concatenate(self.sigma, self.c1, self.c2)
+        return self.c, self.sig
 
     def get_bid_opening_token(self) -> bytes:
         """
@@ -148,5 +150,4 @@ class Bidder(Participant):
         :return: str representation of Bidder.
         """
 
-        return f'Bidder(name: {self.__name}, bid: {self.__bid_value})' if self.address is None else \
-            f'Bidder(name: {self.__name}, bid: {self.__bid_value}, address: {self.address})'
+        return f'Bidder(name: {self.__name}, bid: {self.__bid_value}, address: {self.address}, key: {self.public_key})'

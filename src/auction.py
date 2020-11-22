@@ -186,6 +186,18 @@ class Auction:
             tau_1 = bidder.get_bid_opening_token()
             self.__auctioneer.bid_opening(bidder.address, bidder.ring, c, sigma, tau_1)
 
+        # --- Getting winning bid --- #
+        logging.info('Getting winning commitment.')
+        self.__auctioneer.get_winning_commitment()
+
+        # --- Opening identity of winning bidder --- #
+        winning_commitment = self.__auctioneer.winning_com
+        for bidder in self.__bidders:
+            if bidder.c == winning_commitment:
+                sig, tau_2 = bidder.sig, bidder.get_identity_opening_token()
+                self.__auctioneer.identity_opening(sig, tau_2)
+                logging.info(f'Winning bidder is {bidder}.')
+
     def __send_transaction(self,
                            transaction,
                            func_name: Optional[str] = None,
