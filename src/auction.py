@@ -10,7 +10,7 @@ from json import loads, dump
 from solc import compile_standard
 from random import randint, getrandbits, sample
 from sys import byteorder
-from typing import Optional
+from typing import Optional, Any
 from hexbytes import HexBytes
 
 from src.auctioneer import Auctioneer
@@ -26,8 +26,10 @@ class Auction:
     This class handles everything which is related to the auction. TODO: improve docs.
     """
 
-    # ------------------------------------------------- CONSTRUCTOR ------------------------------------------------- #
+    # --- Constants --- #
+    DEPOSIT = 50
 
+    # ------------------------------------------------- CONSTRUCTOR ------------------------------------------------- #
     def __init__(self) -> None:
         logging.info('Creating Auction object.')
         self.__w3 = Web3(Web3.HTTPProvider('http://127.0.0.1:7545'))
@@ -36,7 +38,6 @@ class Auction:
         self.__is_deployed = False
         self.__auctioneer = None
         self.__bidders = []
-        self.__thread_is_running = True
         self.__total_gas_cost = 0
         self.__number_of_tx = 0
         logging.info('Auction object created.')
@@ -83,7 +84,7 @@ class Auction:
         temp_contract = self.__w3.eth.contract(abi=self.__abi,
                                                bytecode=bytecode)
         logging.info('Transacting contract on the chain.')
-        tx_hash = temp_contract.constructor().transact()
+        tx_hash = temp_contract.constructor(10, 10, 10, True, Auction.DEPOSIT).transact()
         logging.info(f'Transaction hash: {tx_hash.hex()}.')
         tx_receipt = self.__w3.eth.waitForTransactionReceipt(tx_hash)
         contract_address = tx_receipt.contractAddress
@@ -137,17 +138,27 @@ class Auction:
                     if func_abi_dic['name'] == func_name:
                         logging.info(f'Match found for function {func_name}.')
                         abi_inputs = func_abi_dic['inputs']
+                        abi_state_mutability = func_abi_dic['stateMutability']
                         input_types = list(map(lambda arg: arg['type'], abi_inputs))
                         inputs = list(map(lambda arg_type: rand_gen[arg_type](), input_types))
                         logging.info(f'Inputs: '
                                      f'{", ".join([f"{input_types[i]}={inputs[i]}" for i in range(len(inputs))])}')
+                        logging.info(f'State mutability: {abi_state_mutability}.')
                         func = self.__contract.functions[func_name]
                         try:
-                            gas = func(*inputs).estimateGas()
+                            if abi_state_mutability == 'payable':
+                                tx = {
+                                    'value': Auction.DEPOSIT
+                                }
+                                gas = func(*inputs).estimateGas(tx)
+
+                            else:
+                                gas = func(*inputs).estimateGas()
+
                             print(f'{func_name}({", ".join(input_types)}): {gas} gas.')
 
-                        except ValueError:
-                            logging.info('Passed inputs are not accepted by the function.')
+                        except ValueError as e:
+                            logging.info(f'Passed inputs are not accepted by the function. Error: {e}.')
 
                 except KeyError:
                     pass
@@ -180,23 +191,49 @@ class Auction:
 
         logging.debug(f'Bidders created: {self.__bidders}.')
 
+        # --- Starting auction --- #
+        logging.info('Starting auction.')
+        tx = {
+            'from': self.__auctioneer.address,
+            'value': Auction.DEPOSIT
+        }
+        self.__send_transaction(tx,
+                                'startAuction')
+
         # --- Placing bids --- #
         for bidder in self.__bidders:
-            c, sigma = bidder.bid()
-            tau_1 = bidder.get_bid_opening_token()
-            self.__auctioneer.bid_opening(bidder.address, bidder.ring, c, sigma, tau_1)
+            logging.info(f'Placing bid for bidder {bidder}.')
+            c, sig = bidder.bid()
+            tx = {
+                'from': bidder.address,
+                'value': Auction.DEPOSIT
+            }
+            self.__send_transaction(tx,
+                                    'placeBid',
+                                    c, sig)
+
+        # --- Opening bids --- #
+        for bidder in self.__bidders:
+            logging.info(f'Opening bid for bidder {bidder}.')
+            tau_1 = bidder.tau_1
+            tx = {
+                'from': bidder.address
+            }
+            self.__send_transaction(tx,
+                                    'openBid',
+                                    tau_1)
 
         # --- Getting winning bid --- #
-        logging.info('Getting winning commitment.')
-        self.__auctioneer.get_winning_commitment()
+        #logging.info('Getting winning commitment.')
+        #self.__auctioneer.get_winning_commitment()
 
         # --- Opening identity of winning bidder --- #
-        winning_commitment = self.__auctioneer.winning_com
-        for bidder in self.__bidders:
-            if bidder.c == winning_commitment:
-                sig, tau_2 = bidder.sig, bidder.get_identity_opening_token()
-                self.__auctioneer.identity_opening(sig, tau_2)
-                logging.info(f'Winning bidder is {bidder}.')
+        #winning_commitment = self.__auctioneer.winning_com
+        #for bidder in self.__bidders:
+        #    if bidder.c == winning_commitment:
+        #        sig, tau_2 = bidder.sig, bidder.get_identity_opening_token()
+        #        self.__auctioneer.identity_opening(sig, tau_2)
+        #        logging.info(f'Winning bidder is {bidder}.')
 
     def __send_transaction(self,
                            transaction,
@@ -233,3 +270,18 @@ class Auction:
         logging.info(f'Gas used for transaction {tx_hash.hex()}: {gas_used} gas.')
         self.__total_gas_cost += gas_used
         logging.info(f'Total gas cost: {self.__total_gas_cost} gas.')
+
+    def __call(self,
+               func_name: str,
+               *args
+               ) -> Any:
+        """
+        Executes a call to the smart contract. Does not consume gas. Does not alter smart contract state.
+        :param func_name: Name of the function to be called.
+        :param args: Argument to be passed to the function.
+        :return: Output of the function.
+        """
+        logging.info(f'Calling function {func_name}.')
+        rtn = self.__contract.functions[func_name](*args).call()
+        logging.debug(f'Return value is {rtn}.')
+        return rtn

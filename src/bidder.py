@@ -55,6 +55,8 @@ class Bidder(Participant):
         self.c2 = None
         self.d2 = None
         self.sig = None
+        self.tau_1 = None
+        self.tau_2 = None
         logging.info('Bidder created.')
 
     # --------------------------------------------------- METHODS --------------------------------------------------- #
@@ -102,19 +104,9 @@ class Bidder(Participant):
         self.c2, self.d2 = commit(self.C2)
         logging.info('Bid generated.')
         self.sig = concatenate(self.sigma, self.c1, self.c2)
+        self.tau_1 = concatenate(self.C1, self.d1)
+        self.tau_2 = concatenate(self.C2, self.d2)
         return self.c, self.sig
-
-    def get_bid_opening_token(self) -> bytes:
-        """
-        :return: The bid opening token tau_1 made of C_1||d_1.
-        """
-        return concatenate(self.C1, self.d1)
-
-    def get_identity_opening_token(self) -> bytes:
-        """
-        :return: The identity opening token tau_2 made of C_2||d_2.
-        """
-        return concatenate(self.C2, self.d2)
 
     def __sign(self,
                msg: bytes
