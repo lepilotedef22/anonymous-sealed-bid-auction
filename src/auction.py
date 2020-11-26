@@ -10,8 +10,9 @@ from json import loads, dump
 from solc import compile_standard
 from random import randint, getrandbits, sample
 from sys import byteorder
-from typing import Optional, Any
+from typing import Optional, Any, Union
 from hexbytes import HexBytes
+from cryptocompare import get_price
 
 from src.auctioneer import Auctioneer
 from src.utils.file_helper import get_bidders
@@ -121,6 +122,7 @@ class Auction:
             logging.info('Deploying smart contract.')
             self.deploy()
 
+        exchange_ratio = self.__get_gas_price_usd()
         rand_gen = {
             'uint256': lambda: randint(0, 2**256 - 1),
             'bytes': lambda: getrandbits(8 * 32).to_bytes(32, byteorder),
@@ -155,7 +157,12 @@ class Auction:
                             else:
                                 gas = func(*inputs).estimateGas()
 
-                            print(f'{func_name}({", ".join(input_types)}): {gas} gas.')
+                            if exchange_ratio is None:
+                                print(f'{func_name}({", ".join(input_types)}): {gas} gas.')
+
+                            else:
+                                print(f'{func_name}({", ".join(input_types)}): {gas} gas = '
+                                      f'{gas * exchange_ratio:.2f} USD.')
 
                         except ValueError as e:
                             logging.info(f'Passed inputs are not accepted by the function. Error: {e}.')
@@ -285,3 +292,18 @@ class Auction:
         rtn = self.__contract.functions[func_name](*args).call()
         logging.debug(f'Return value is {rtn}.')
         return rtn
+
+    def __get_gas_price_usd(self) -> Union[float, None]:
+        """
+        :return: Exchange rate from gas to USD.
+        """
+        eth_to_usd_fetch = get_price('ETH', curr='USD')
+        if eth_to_usd_fetch is None:
+            return None
+
+        eth_to_usd = eth_to_usd_fetch['ETH']['USD']
+        gas_to_wei = self.__w3.eth.gasPrice
+        wei_to_eth = 1e-18
+        exchange_ratio = gas_to_wei * wei_to_eth * eth_to_usd
+        logging.info(f'Exchange ratio from gas to USD is {exchange_ratio:.2f} USD/gas.')
+        return exchange_ratio

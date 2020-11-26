@@ -19,6 +19,7 @@ contract Auction {
     bool public test;
     address public auctioneer;
     mapping (address => Bidder) public bidders;
+    address[] public bidderAddresses;
     mapping(address => uint) public deposit;
     uint public depositValue;
     uint public totalDeposit = 0;
