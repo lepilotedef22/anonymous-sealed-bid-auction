@@ -13,9 +13,11 @@ from sys import byteorder
 from typing import Optional, Any, Union
 from hexbytes import HexBytes
 from cryptocompare import get_price
+from Crypto.PublicKey import RSA
 
 from src.auctioneer import Auctioneer
 from src.utils.file_helper import get_bidders
+from src.utils.crypto import parse
 
 
 __author__ = 'Denis Verstraeten'
@@ -181,6 +183,9 @@ class Auction:
             logging.info('Deploying smart contract.')
             self.deploy()
 
+        # --- Setting up filters --- #
+        new_bidder_filter = self.__contract.events.newBidder.createFilter(fromBlock='latest')
+
         # --- Generating auctioneer and bidders --- #
         self.__auctioneer = Auctioneer(address=self.__w3.eth.defaultAccount)
         logging.info(f'Auctioneer created: {self.__auctioneer}.')
@@ -217,11 +222,11 @@ class Auction:
             }
             self.__send_transaction(tx,
                                     'placeBid',
-                                    c, sig)
+                                    c, sig, bidder.export_ring())
 
         # --- Opening bids --- #
         for bidder in self.__bidders:
-            logging.info(f'Opening bid for bidder {bidder}.')
+            logging.info(f'Sending tau_1 for bidder {bidder}.')
             tau_1 = bidder.tau_1
             tx = {
                 'from': bidder.address
@@ -230,12 +235,46 @@ class Auction:
                                     'openBid',
                                     tau_1)
 
+        for event in new_bidder_filter.get_new_entries():
+            new_bidder_address = event['args']['newBidderAddress']
+            event_name = event['event']
+            logging.info(f'Catching event {event_name} from bidder at {new_bidder_address}.')
+            self.__auctioneer.bidders[new_bidder_address] = None
+
+        for bidder_address in self.__auctioneer.bidders.keys():
+            c = self.__call('getC', bidder_address)
+            sig = self.__call('getSig', bidder_address)
+            tau_1 = self.__call('getTau1', bidder_address)
+            ring = list(map(lambda key: RSA.importKey(key),
+                            parse(self.__call('getRing', bidder_address))))
+            logging.info(f'Opening bid for bidder at {bidder_address}.')
+            if self.__auctioneer.bid_opening(bidder_address, ring, c, sig, tau_1):
+                logging.info(f'Bid opening successful for bidder at {bidder_address}.')
+
+            else:
+                logging.info(f'Bid opening failed, punishing bidder at {bidder_address}.')
+                self.__auctioneer.bidders.pop(bidder_address, None)
+                tx = {
+                    'from': self.__auctioneer.address
+                }
+                self.__send_transaction(tx,
+                                        'punishBidder',
+                                        bidder_address)
+
         # --- Getting winning bid --- #
-        #logging.info('Getting winning commitment.')
-        #self.__auctioneer.get_winning_commitment()
+        logging.info('Getting winning commitment.')
+        self.__auctioneer.get_winning_commitment()
 
         # --- Opening identity of winning bidder --- #
-        #winning_commitment = self.__auctioneer.winning_com
+        winning_commitment = self.__auctioneer.winning_com
+        tx = {
+            'from': self.__auctioneer.address
+        }
+        logging.info('Publishing winning commitment.')
+        self.__send_transaction(tx,
+                                'announceWinningCommitment',
+                                winning_commitment)
+
         #for bidder in self.__bidders:
         #    if bidder.c == winning_commitment:
         #        sig, tau_2 = bidder.sig, bidder.get_identity_opening_token()

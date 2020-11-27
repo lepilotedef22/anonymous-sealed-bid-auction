@@ -43,7 +43,7 @@ class Auctioneer(Participant):
                     address: str,
                     ring: List[RSA.RsaKey],
                     c: bytes,
-                    sigma: bytes,
+                    sig: bytes,
                     tau_1: bytes
                     ) -> bool:
         """
@@ -51,14 +51,14 @@ class Auctioneer(Participant):
         :param address: Address of the bidder.
         :param ring: Ring of public keys used by the bidder for the Ring Signature.
         :param c: Commitment to the bid.
-        :param sigma: Ring Signature to the bid.
+        :param sig: Ring Signature to the bid.
         :param tau_1: Bid opening token.
-        :return: Whether th bid opening was successful.
+        :return: Whether the bid opening was successful.
         """
         logging.info(f'Opening bid for bidder at {address}.')
         status = False
         logging.info('Parsing sigma.')
-        sigma, c1, c2 = parse(sigma)
+        sigma, c1, c2 = parse(sig)
         if self.verify(c, sigma, ring):
             logging.info('Signature sigma successfully verified.')
             C1, d1 = parse(tau_1)

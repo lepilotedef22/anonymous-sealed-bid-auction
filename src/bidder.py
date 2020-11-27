@@ -108,6 +108,12 @@ class Bidder(Participant):
         self.tau_2 = concatenate(self.C2, self.d2)
         return self.c, self.sig
 
+    def export_ring(self) -> bytes:
+        """
+        :return: The concatenation of the keys of the ring.
+        """
+        return concatenate(*list(map(lambda key: key.publickey().exportKey(), self.ring)))
+
     def __sign(self,
                msg: bytes
                ) -> bytes:

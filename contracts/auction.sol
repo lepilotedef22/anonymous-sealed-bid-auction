@@ -7,6 +7,7 @@ contract Auction {
     struct Bidder {
         bytes c;
         bytes sig;
+        bytes ring;
         bytes tau_1;
         bytes tau_2;
     }
@@ -55,6 +56,8 @@ contract Auction {
         require(block.number > T0 + T1 + T2 + T3 || test, 'Not after T3 yet.');
         _;
     }
+    /* Events */
+    event newBidder(address newBidderAddress);
 
     /* Constructor */
     constructor(uint _T1, uint _T2, uint _T3, bool _test, uint deposit){
@@ -73,11 +76,13 @@ contract Auction {
         totalDeposit += msg.value;
     }
 
-    function placeBid(bytes memory _c, bytes memory _sig) public payable enoughDeposit beforeT1 {
+    function placeBid(bytes memory _c, bytes memory _sig, bytes memory _ring) public payable enoughDeposit beforeT1 {
         deposit[msg.sender] = msg.value;
         totalDeposit += msg.value;
         bidders[msg.sender].c = _c;
         bidders[msg.sender].sig = _sig;
+        bidders[msg.sender].ring = _ring;
+        emit newBidder(msg.sender);
     }
 
     function openBid(bytes memory _tau_1) public beforeT2 {
@@ -101,5 +106,21 @@ contract Auction {
     function punishBidder(address bidderAddress) public {
         deposit[bidderAddress] = 0;
         totalDeposit -= deposit[bidderAddress];
+    }
+
+    function getC(address bidderAddress) public beforeT2 returns (bytes memory) {
+        return bidders[bidderAddress].c;
+    }
+
+    function getSig(address bidderAddress) public beforeT2 returns (bytes memory) {
+        return bidders[bidderAddress].sig;
+    }
+
+    function getTau1(address bidderAddress) public beforeT2 returns (bytes memory) {
+        return bidders[bidderAddress].tau_1;
+    }
+
+    function getRing(address bidderAddress) public beforeT2 returns (bytes memory) {
+        return bidders[bidderAddress].ring;
     }
 }
