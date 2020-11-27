@@ -26,11 +26,11 @@ __date__ = '2020.3.4'
 
 class Auction:
     """
-    This class handles everything which is related to the auction. TODO: improve docs.
+    This class handles everything which is related to the auction.
     """
 
     # --- Constants --- #
-    DEPOSIT = 50
+    DEPOSIT = 1000000000000000000  # 1 ETH deposit to be more visible in ganache.
 
     # ------------------------------------------------- CONSTRUCTOR ------------------------------------------------- #
     def __init__(self) -> None:
@@ -186,6 +186,7 @@ class Auction:
         # --- Setting up filters --- #
         new_bidder_filter = self.__contract.events.newBidder.createFilter(fromBlock='latest')
 
+        print('Simulating anonymous sealed-bid auction protocol...')
         # --- Generating auctioneer and bidders --- #
         self.__auctioneer = Auctioneer(address=self.__w3.eth.defaultAccount)
         logging.info(f'Auctioneer created: {self.__auctioneer}.')
@@ -275,11 +276,57 @@ class Auction:
                                 'announceWinningCommitment',
                                 winning_commitment)
 
-        #for bidder in self.__bidders:
-        #    if bidder.c == winning_commitment:
-        #        sig, tau_2 = bidder.sig, bidder.get_identity_opening_token()
-        #        self.__auctioneer.identity_opening(sig, tau_2)
-        #        logging.info(f'Winning bidder is {bidder}.')
+        for bidder in self.__bidders:
+            winning_commitment = self.__call('winningCommitment')
+            if bidder.c == winning_commitment:
+                logging.info(f'Bidder {bidder} is winning bidder.')
+                tx = {
+                    'from': bidder.address
+                }
+                self.__send_transaction(tx,
+                                        'openIdentity',
+                                        bidder.tau_2)
+                break
+
+        logging.info('Getting sig and tau_2 for winning bidder.')
+        sig = self.__call('getSig',
+                          self.__auctioneer.winning_address)
+        tau_2 = self.__call('getTau2',
+                            self.__auctioneer.winning_address)
+
+        if self.__auctioneer.identity_opening(sig, tau_2):
+            print('Identity of winning bidder successfully verified.')
+            print(f"Winning bidder's address: {self.__auctioneer.winning_address}.")
+            print(f"Winning bidder's public key: {self.__auctioneer.winning_bidder}.")
+            print(f'Winning bid: {self.__auctioneer.bidders[self.__auctioneer.winning_address]["bid"]}.')
+
+        else:
+            logging.info(f'Identity opening failed. Punishing bidder at {self.__auctioneer.winning_address}.')
+            self.__auctioneer.bidders.pop(self.__auctioneer.winning_address, None)
+            tx = {
+                'from': self.__auctioneer.address
+            }
+            self.__send_transaction(tx,
+                                    'punishBidder',
+                                    self.__auctioneer.winning_address)
+
+        # --- Withdrawing deposit --- #
+        print('Withdrawing deposits...')
+        for bidder in self.__bidders:
+            logging.info(f'Withdrawing deposit for bidder at {bidder.address}.')
+            tx = {
+                'from': bidder.address
+            }
+            self.__send_transaction(tx,
+                                    'withdrawDeposit')
+
+        logging.info('Withdrawing deposit for auctioneer.')
+        tx = {
+            'from': self.__auctioneer.address
+        }
+        self.__send_transaction(tx,
+                                'withdrawDeposit')
+        print('Deposits withdrawn.')
 
     def __send_transaction(self,
                            transaction,

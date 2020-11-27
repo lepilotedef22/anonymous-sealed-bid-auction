@@ -36,6 +36,7 @@ class Auctioneer(Participant):
         self.bidders = {}
         self.winning_com = None
         self.winning_bidder = None
+        self.winning_address = None
 
     # --------------------------------------------------- METHODS --------------------------------------------------- #
 
@@ -119,15 +120,14 @@ class Auctioneer(Participant):
 
     def get_winning_commitment(self) -> None:
         """
-        TEMPORARY METHOD !!! Will be deleted once ZKP is implemented.
         Gets the winning bid value and the winning commitment.
         """
         logging.info('Getting winning bid.')
         max_bid = 0
-        for bidder in self.bidders.values():
-            x = bidder['bid']
-            c = bidder['com']
-            d = bidder['decom']
+        for bidder_address in self.bidders.keys():
+            x = self.bidders[bidder_address]['bid']
+            c = self.bidders[bidder_address]['com']
+            d = self.bidders[bidder_address]['decom']
             if not commit_verify(x.to_bytes(int(256 / 8), byteorder), d, c):
                 logging.info('Commit verification failed.')
                 continue
@@ -135,6 +135,7 @@ class Auctioneer(Participant):
             if x > max_bid:
                 max_bid = x
                 self.winning_com = c
+                self.winning_address = bidder_address
 
         logging.info(f'Winning bid is {max_bid}.')
 

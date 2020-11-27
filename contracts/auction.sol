@@ -123,4 +123,8 @@ contract Auction {
     function getRing(address bidderAddress) public beforeT2 returns (bytes memory) {
         return bidders[bidderAddress].ring;
     }
+
+    function getTau2(address bidderAddress) public beforeT3 returns (bytes memory) {
+        return bidders[bidderAddress].tau_2;
+    }
 }
