@@ -48,6 +48,18 @@ if __name__ == '__main__':
             'gas'
         ]
     )
+    parser.add_argument(
+        '-o',
+        '--output',
+        action='store',
+        help='File name for the gas csv file'
+    )
+    parser.add_argument(
+        '-f',
+        '--functions',
+        help='Functions to store in the output file',
+        nargs='+'
+    )
     args = vars(parser.parse_args())
     # Logging (credit: https://docs.python.org/3/howto/logging.html)
     numeric_level = getattr(logging, args['log'].upper(), None)
@@ -56,14 +68,17 @@ if __name__ == '__main__':
     logging.getLogger('requests').setLevel(logging.WARNING)
     logging.getLogger('urllib3').setLevel(logging.WARNING)
     logging.getLogger('web3').setLevel(logging.WARNING)
+    # Args parsing
     mode = args['mode']
+    output_file = args['output']
+    functions = args['functions']
     auction = Auction()
     try:
         if mode == 'deploy':
             auction.deploy()
 
         elif mode == 'gas':
-            auction.estimate_gas()
+            auction.estimate_gas(output_file, functions)
 
         elif mode == 'poc':
             auction.proof_of_concept()

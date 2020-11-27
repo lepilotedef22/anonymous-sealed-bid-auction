@@ -10,10 +10,11 @@ from json import loads, dump
 from solc import compile_standard
 from random import randint, getrandbits, sample
 from sys import byteorder
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, List
 from hexbytes import HexBytes
 from cryptocompare import get_price
 from Crypto.PublicKey import RSA
+from csv import writer
 
 from src.auctioneer import Auctioneer
 from src.utils.file_helper import get_bidders
@@ -30,7 +31,7 @@ class Auction:
     """
 
     # --- Constants --- #
-    DEPOSIT = 1000000000000000000  # 1 ETH deposit to be more visible in ganache.
+    DEPOSIT = 1000000000000000000  # 1 ETH deposit expressed in Wei.
 
     # ------------------------------------------------- CONSTRUCTOR ------------------------------------------------- #
     def __init__(self) -> None:
@@ -46,7 +47,6 @@ class Auction:
         logging.info('Auction object created.')
 
     # --------------------------------------------------- METHODS --------------------------------------------------- #
-
     def deploy(self) -> None:
         """
         This method deploys the Auction smart contract on the Ganache Ethereum local chain.
@@ -116,13 +116,25 @@ class Auction:
         self.__is_deployed = True
         print('Auction smart contract successfully deployed.')
 
-    def estimate_gas(self) -> None:
+    def estimate_gas(self,
+                     output_file: Union[str, None],
+                     functions: Union[List[str], None]
+                     ) -> None:
         """
         This method estimates the gas consumption of the functions of the contract.
+        :param output_file: Name of the CSV output file.
+        :param functions: List of the name of the functions that need to be stored in the output_file.
         """
         if not self.__is_deployed:
             logging.info('Deploying smart contract.')
             self.deploy()
+
+        if output_file is None:
+            output_file = 'gas.csv'
+
+        output = Path.cwd() / output_file
+        if output.exists():
+            output.unlink()
 
         exchange_ratio = self.__get_gas_price_usd()
         rand_gen = {
@@ -134,6 +146,7 @@ class Auction:
         print('\t--------------------------------------------')
         print('\t| Gas consumption of individual functions: |')
         print('\t--------------------------------------------')
+        csv_rows = [['Function', 'Gas', 'USD']]
         for smart_contract_function in self.__contract.all_functions():
             func_name = getattr(smart_contract_function, 'fn_name')
             logging.info(f'Function name: {func_name}.')
@@ -161,10 +174,14 @@ class Auction:
 
                             if exchange_ratio is None:
                                 print(f'{func_name}({", ".join(input_types)}): {gas} gas.')
+                                if functions is None or func_name in functions:
+                                    csv_rows.append([func_name, gas, ''])
 
                             else:
                                 print(f'{func_name}({", ".join(input_types)}): {gas} gas = '
                                       f'{gas * exchange_ratio:.2f} USD.')
+                                if functions is None or func_name in functions:
+                                    csv_rows.append([func_name, gas, f'{gas * exchange_ratio:.2f}'])
 
                         except ValueError as e:
                             logging.info(f'Passed inputs are not accepted by the function. Error: {e}.')
@@ -173,6 +190,10 @@ class Auction:
                     pass
 
         logging.info('Gas consumption estimated.')
+        with output.open(mode='w') as csv_file:
+            csv_writer = writer(csv_file, delimiter=',')
+            csv_writer.writerows(csv_rows)
+            logging.info('Data stored in csv file.')
 
     def proof_of_concept(self) -> None:
         """
