@@ -181,7 +181,7 @@ class Auction:
                                 print(f'{func_name}({", ".join(input_types)}): {gas} gas = '
                                       f'{gas * exchange_ratio:.2f} USD.')
                                 if functions is None or func_name in functions:
-                                    csv_rows.append([func_name, gas, f'{gas * exchange_ratio:.2f}'])
+                                    csv_rows.append([func_name, gas, round(gas * exchange_ratio, 2)])
 
                         except ValueError as e:
                             logging.info(f'Passed inputs are not accepted by the function. Error: {e}.')
