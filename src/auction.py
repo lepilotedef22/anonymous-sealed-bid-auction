@@ -45,6 +45,7 @@ class Auction:
         self.__bidders = []
         self.__total_gas_cost = 0
         self.__number_of_tx = 0
+        self.__exchange_ratio = None
         logging.info('Auction object created.')
 
     # --------------------------------------------------- METHODS --------------------------------------------------- #
@@ -117,6 +118,7 @@ class Auction:
         logging.info('Connected to smart contract.')
         self.__is_deployed = True
         print('Auction smart contract successfully deployed.')
+        self.__exchange_ratio = self.__get_gas_price_usd()
 
     def estimate_gas(self,
                      output_file: Union[str, None],
@@ -138,7 +140,6 @@ class Auction:
         if output.exists():
             output.unlink()
 
-        exchange_ratio = self.__get_gas_price_usd()
         rand_gen = {
             'uint256': lambda: randint(0, 2**256 - 1),
             'bytes': lambda: getrandbits(8 * 32).to_bytes(32, byteorder),
@@ -158,13 +159,13 @@ class Auction:
         logging.info(f'Inputs: '
                      f'{", ".join([f"{input_types[i]}={inputs[i]}" for i in range(len(inputs))])}')
         gas = self.__contract.constructor(*inputs).estimateGas()
-        if exchange_ratio is None:
+        if self.__exchange_ratio is None:
             print(f'Deployment: {gas} gas.')
             csv_rows.append(['Deployment', gas, ''])
 
         else:
-            print(f'Deployment: {gas} gas = {gas * exchange_ratio:.2f} USD.')
-            csv_rows.append(['Deployment', gas, round(gas * exchange_ratio, 2)])
+            print(f'Deployment: {gas} gas = {gas * self.__exchange_ratio:.2f} USD.')
+            csv_rows.append(['Deployment', gas, round(gas * self.__exchange_ratio, 2)])
 
         # --- Individual functions --- #
         for smart_contract_function in self.__contract.all_functions():
@@ -192,16 +193,16 @@ class Auction:
                             else:
                                 gas = func(*inputs).estimateGas()
 
-                            if exchange_ratio is None:
+                            if self.__exchange_ratio is None:
                                 print(f'{func_name}({", ".join(input_types)}): {gas} gas.')
                                 if functions is None or func_name in functions:
                                     csv_rows.append([func_name, gas, ''])
 
                             else:
                                 print(f'{func_name}({", ".join(input_types)}): {gas} gas = '
-                                      f'{gas * exchange_ratio:.2f} USD.')
+                                      f'{gas * self.__exchange_ratio:.2f} USD.')
                                 if functions is None or func_name in functions:
-                                    csv_rows.append([func_name, gas, round(gas * exchange_ratio, 2)])
+                                    csv_rows.append([func_name, gas, round(gas * self.__exchange_ratio, 2)])
 
                         except ValueError as e:
                             logging.info(f'Passed inputs are not accepted by the function. Error: {e}.')
@@ -225,6 +226,28 @@ class Auction:
         if not self.__is_deployed:
             logging.info('Deploying smart contract.')
             self.deploy()
+
+        # --- Getting bidders indices --- #
+        bidders_dic = None
+        for entry in self.__abi:
+            try:
+                if entry['name'] == 'bidders':
+                    bidders_dic = entry
+                    break
+
+            except KeyError:
+                pass
+
+        outputs = bidders_dic['outputs']
+        indices = {}
+        for index, output in enumerate(outputs):
+            indices[output['name']] = index
+
+        c_index = indices['c']
+        sig_index = indices['sig']
+        ring_index = indices['ring']
+        tau_1_index = indices['tau_1']
+        tau_2_index = indices['tau_2']
 
         # --- Setting up filters --- #
         new_bidder_filter = self.__contract.events.newBidder.createFilter(fromBlock='latest')
@@ -289,11 +312,11 @@ class Auction:
             self.__auctioneer.bidders[new_bidder_address] = None
 
         for bidder_address in self.__auctioneer.bidders.keys():
-            c = self.__call('getC', bidder_address)
-            sig = self.__call('getSig', bidder_address)
-            tau_1 = self.__call('getTau1', bidder_address)
-            ring = list(map(lambda key: RSA.importKey(key),
-                            parse(self.__call('getRing', bidder_address))))
+            bidder = self.__call('bidders', bidder_address)
+            c = bidder[c_index]
+            sig = bidder[sig_index]
+            tau_1 = bidder[tau_1_index]
+            ring = list(map(lambda key: RSA.importKey(key), parse(bidder[ring_index])))
             logging.info(f'Opening bid for bidder at {bidder_address}.')
             if self.__auctioneer.bid_opening(bidder_address, ring, c, sig, tau_1):
                 logging.info(f'Bid opening successful for bidder at {bidder_address}.')
@@ -338,10 +361,9 @@ class Auction:
                 break
 
         logging.info('Getting sig and tau_2 for winning bidder.')
-        sig = self.__call('getSig',
-                          self.__auctioneer.winning_address)
-        tau_2 = self.__call('getTau2',
-                            self.__auctioneer.winning_address)
+        winning_bidder = self.__call('bidders', self.__auctioneer.winning_address)
+        sig = winning_bidder[sig_index]
+        tau_2 = winning_bidder[tau_2_index]
 
         if self.__auctioneer.identity_opening(sig, tau_2):
             print('Identity of winning bidder successfully verified.')
@@ -382,17 +404,18 @@ class Auction:
         print('------------')
         print('| Gas cost |')
         print('------------')
-        exchange_ratio = self.__get_gas_price_usd()
-        if exchange_ratio is None:
+
+        if self.__exchange_ratio is None:
             print(f'Total cost auctioneer: {self.__auctioneer.gas} gas.')
             for bidder in self.__bidders:
                 print(f'Total cost for bidder {bidder.name}: {bidder.gas} gas.')
 
         else:
             print(f'Total cost auctioneer: {self.__auctioneer.gas} gas '
-                  f'= {self.__auctioneer.gas * exchange_ratio:.2f} USD.')
+                  f'= {self.__auctioneer.gas * self.__exchange_ratio:.2f} USD.')
             for bidder in self.__bidders:
-                print(f'Total cost for bidder {bidder.name}: {bidder.gas} gas = {bidder.gas * exchange_ratio:.2f} USD.')
+                print(f'Total cost for bidder {bidder.name}: {bidder.gas} gas ='
+                      f' {bidder.gas * self.__exchange_ratio:.2f} USD.')
 
     def __send_transaction(self,
                            transaction,
@@ -431,7 +454,13 @@ class Auction:
         """
         tx_receipt = self.__w3.eth.waitForTransactionReceipt(tx_hash)
         gas_used = tx_receipt.gasUsed
-        logging.info(f'Gas used for transaction {tx_hash.hex()}: {gas_used} gas.')
+        if self.__exchange_ratio is None:
+            logging.info(f'Gas used for transaction {tx_hash.hex()}: {gas_used} gas.')
+
+        else:
+            logging.info(f'Gas used for transaction {tx_hash.hex()}: {gas_used} gas = '
+                         f'{gas_used * self.__exchange_ratio:.2f} USD.')
+
         self.__total_gas_cost += gas_used
         participant.gas += gas_used
         logging.info(f'Total gas cost: {self.__total_gas_cost} gas.')
