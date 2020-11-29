@@ -111,7 +111,8 @@ class Auction:
 
         logging.info('Connecting to actual smart contract.')
         self.__contract = self.__w3.eth.contract(address=contract_address,
-                                                 abi=self.__abi)
+                                                 abi=self.__abi,
+                                                 bytecode=bytecode)
         logging.info('Connected to smart contract.')
         self.__is_deployed = True
         print('Auction smart contract successfully deployed.')
@@ -140,13 +141,31 @@ class Auction:
         rand_gen = {
             'uint256': lambda: randint(0, 2**256 - 1),
             'bytes': lambda: getrandbits(8 * 32).to_bytes(32, byteorder),
-            'address': lambda: getrandbits(8 * 20).to_bytes(20, byteorder)
+            'address': lambda: getrandbits(8 * 20).to_bytes(20, byteorder),
+            'bool': lambda: bool(getrandbits(1))
         }
         logging.info('Estimating gas consumption of smart contract functions.')
         print('\t--------------------------------------------')
         print('\t| Gas consumption of individual functions: |')
         print('\t--------------------------------------------')
         csv_rows = [['Function', 'Gas', 'USD']]
+        # --- Contract deployment --- #
+        constructor_abi_dic = self.__abi[0]
+        abi_inputs = constructor_abi_dic['inputs']
+        input_types = list(map(lambda arg: arg['type'], abi_inputs))
+        inputs = list(map(lambda arg_type: rand_gen[arg_type](), input_types))
+        logging.info(f'Inputs: '
+                     f'{", ".join([f"{input_types[i]}={inputs[i]}" for i in range(len(inputs))])}')
+        gas = self.__contract.constructor(*inputs).estimateGas()
+        if exchange_ratio is None:
+            print(f'Deployment: {gas} gas.')
+            csv_rows.append(['Deployment', gas, ''])
+
+        else:
+            print(f'Deployment: {gas} gas = {gas * exchange_ratio:.2f} USD.')
+            csv_rows.append(['Deployment', gas, round(gas * exchange_ratio, 2)])
+
+        # --- Individual functions --- #
         for smart_contract_function in self.__contract.all_functions():
             func_name = getattr(smart_contract_function, 'fn_name')
             logging.info(f'Function name: {func_name}.')
@@ -185,6 +204,8 @@ class Auction:
 
                         except ValueError as e:
                             logging.info(f'Passed inputs are not accepted by the function. Error: {e}.')
+
+                        break
 
                 except KeyError:
                     pass
