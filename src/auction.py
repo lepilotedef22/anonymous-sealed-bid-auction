@@ -19,6 +19,7 @@ from csv import writer
 from src.auctioneer import Auctioneer
 from src.utils.file_helper import get_bidders
 from src.utils.crypto import parse
+from src.participant import Participant
 
 
 __author__ = 'Denis Verstraeten'
@@ -253,6 +254,7 @@ class Auction:
             'value': Auction.DEPOSIT
         }
         self.__send_transaction(tx,
+                                self.__auctioneer,
                                 'startAuction')
 
         # --- Placing bids --- #
@@ -264,6 +266,7 @@ class Auction:
                 'value': Auction.DEPOSIT
             }
             self.__send_transaction(tx,
+                                    bidder,
                                     'placeBid',
                                     c, sig, bidder.export_ring())
 
@@ -275,6 +278,7 @@ class Auction:
                 'from': bidder.address
             }
             self.__send_transaction(tx,
+                                    bidder,
                                     'openBid',
                                     tau_1)
 
@@ -301,6 +305,7 @@ class Auction:
                     'from': self.__auctioneer.address
                 }
                 self.__send_transaction(tx,
+                                        self.__auctioneer,
                                         'punishBidder',
                                         bidder_address)
 
@@ -315,6 +320,7 @@ class Auction:
         }
         logging.info('Publishing winning commitment.')
         self.__send_transaction(tx,
+                                self.__auctioneer,
                                 'announceWinningCommitment',
                                 winning_commitment)
 
@@ -326,6 +332,7 @@ class Auction:
                     'from': bidder.address
                 }
                 self.__send_transaction(tx,
+                                        bidder,
                                         'openIdentity',
                                         bidder.tau_2)
                 break
@@ -349,6 +356,7 @@ class Auction:
                 'from': self.__auctioneer.address
             }
             self.__send_transaction(tx,
+                                    self.__auctioneer,
                                     'punishBidder',
                                     self.__auctioneer.winning_address)
 
@@ -360,6 +368,7 @@ class Auction:
                 'from': bidder.address
             }
             self.__send_transaction(tx,
+                                    bidder,
                                     'withdrawDeposit')
 
         logging.info('Withdrawing deposit for auctioneer.')
@@ -367,19 +376,36 @@ class Auction:
             'from': self.__auctioneer.address
         }
         self.__send_transaction(tx,
+                                self.__auctioneer,
                                 'withdrawDeposit')
         print('Deposits withdrawn.')
+        print('------------')
+        print('| Gas cost |')
+        print('------------')
+        exchange_ratio = self.__get_gas_price_usd()
+        if exchange_ratio is None:
+            print(f'Total cost auctioneer: {self.__auctioneer.gas} gas.')
+            for bidder in self.__bidders:
+                print(f'Total cost for bidder {bidder.name}: {bidder.gas} gas.')
+
+        else:
+            print(f'Total cost auctioneer: {self.__auctioneer.gas} gas '
+                  f'= {self.__auctioneer.gas * exchange_ratio:.2f} USD.')
+            for bidder in self.__bidders:
+                print(f'Total cost for bidder {bidder.name}: {bidder.gas} gas = {bidder.gas * exchange_ratio:.2f} USD.')
 
     def __send_transaction(self,
                            transaction,
+                           participant: Participant,
                            func_name: Optional[str] = None,
                            *args
                            ) -> None:
         """
         Executes a transaction. Can be the execution of a smart contract function.
+        :param transaction: Transaction data.
+        :param participant: Optional participant whose gas consumption should be updated.
         :param func_name: Optional name of the smart contract function to be executed.
         :param args: Argument to be passed to the function.
-        :param transaction: Transaction data.
         """
         if func_name is not None:
             logging.info(f'Executing function {func_name}.')
@@ -390,20 +416,24 @@ class Auction:
             tx_hash = self.__w3.eth.sendTransaction(transaction)
 
         logging.info(f'Transaction hash: {tx_hash.hex()}.')
-        self.__gas_cost(tx_hash)
+        self.__gas_cost(tx_hash,
+                        participant)
         self.__number_of_tx += 1
 
     def __gas_cost(self,
-                   tx_hash: HexBytes
+                   tx_hash: HexBytes,
+                   participant: Participant
                    ) -> None:
         """
         Adds the gas cost of the transaction to self.__total_gas_cost.
         :param tx_hash: Hash of the transaction whose gas cost should be added.
+        :param participant: Optional participant whose gas consumption should be updated.
         """
         tx_receipt = self.__w3.eth.waitForTransactionReceipt(tx_hash)
         gas_used = tx_receipt.gasUsed
         logging.info(f'Gas used for transaction {tx_hash.hex()}: {gas_used} gas.')
         self.__total_gas_cost += gas_used
+        participant.gas += gas_used
         logging.info(f'Total gas cost: {self.__total_gas_cost} gas.')
 
     def __call(self,

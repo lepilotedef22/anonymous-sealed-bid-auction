@@ -34,6 +34,7 @@ class Participant(ABC):
         """
         logging.info('Creating Participant.')
         self.address = address
+        self.gas = 0
         if generate_new_keys:
             self._RSA_key = RSA.generate(2048)
             self.public_key = self._RSA_key.publickey()

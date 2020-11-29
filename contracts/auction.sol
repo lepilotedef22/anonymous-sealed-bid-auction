@@ -107,23 +107,23 @@ contract Auction {
         totalDeposit -= deposit[bidderAddress];
     }
 
-    function getC(address bidderAddress) public beforeT2 returns (bytes memory) {
+    function getC(address bidderAddress) public beforeT2 view returns (bytes memory) {
         return bidders[bidderAddress].c;
     }
 
-    function getSig(address bidderAddress) public beforeT2 returns (bytes memory) {
+    function getSig(address bidderAddress) public beforeT2 view returns (bytes memory) {
         return bidders[bidderAddress].sig;
     }
 
-    function getTau1(address bidderAddress) public beforeT2 returns (bytes memory) {
+    function getTau1(address bidderAddress) public beforeT2 view returns (bytes memory) {
         return bidders[bidderAddress].tau_1;
     }
 
-    function getRing(address bidderAddress) public beforeT2 returns (bytes memory) {
+    function getRing(address bidderAddress) public beforeT2 view returns (bytes memory) {
         return bidders[bidderAddress].ring;
     }
 
-    function getTau2(address bidderAddress) public beforeT3 returns (bytes memory) {
+    function getTau2(address bidderAddress) public beforeT3 view returns (bytes memory) {
         return bidders[bidderAddress].tau_2;
     }
 }

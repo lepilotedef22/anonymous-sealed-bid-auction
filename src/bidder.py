@@ -38,7 +38,7 @@ class Bidder(Participant):
 
         logging.info('Creating Bidder.')
         super().__init__(address, generate_new_keys)
-        self.__name = name
+        self.name = name
         self.__bid_value = bid
         self.auctioneer_pub_key = None
         self.ring = None
@@ -148,4 +148,4 @@ class Bidder(Participant):
         :return: str representation of Bidder.
         """
 
-        return f'Bidder(name: {self.__name}, bid: {self.__bid_value}, address: {self.address}, key: {self.public_key})'
+        return f'Bidder(name: {self.name}, bid: {self.__bid_value}, address: {self.address}, key: {self.public_key})'
