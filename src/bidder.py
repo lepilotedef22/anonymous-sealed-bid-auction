@@ -39,7 +39,7 @@ class Bidder(Participant):
         logging.info('Creating Bidder.')
         super().__init__(address, generate_new_keys)
         self.name = name
-        self.__bid_value = bid
+        self.bid_value = bid
         self.auctioneer_pub_key = None
         self.ring = None
         self.__s = None
@@ -84,14 +84,14 @@ class Bidder(Participant):
         """
         logging.info('Generating bid.')
         logging.info('Computing c and d.')
-        self.c, self.__d = commit(self.__bid_value.to_bytes(int(256 / 8), byteorder))
+        self.c, self.__d = commit(self.bid_value.to_bytes(int(256 / 8), byteorder))
         logging.info('Computing sigma.')
         self.sigma = self.__sign(self.c)
         logging.info('Computing Sigma.')
         self.__Sigma = self.__sign(self.c + self.sigma)
         logging.info('Computing C1.')
         self.C1 = self.__encrypt(concatenate(self.c, self.sigma, self.__Sigma,
-                                             self.__bid_value.to_bytes(int(256 / 8), byteorder), self.__d))
+                                             self.bid_value.to_bytes(int(256 / 8), byteorder), self.__d))
         logging.info('Computing c1 and d1.')
         self.c1, self.d1 = commit(self.C1)
         logging.info('Computing delta.')
@@ -148,4 +148,4 @@ class Bidder(Participant):
         :return: str representation of Bidder.
         """
 
-        return f'Bidder(name: {self.name}, bid: {self.__bid_value}, address: {self.address}, key: {self.public_key})'
+        return f'Bidder(name: {self.name}, bid: {self.bid_value}, address: {self.address}, key: {self.public_key})'

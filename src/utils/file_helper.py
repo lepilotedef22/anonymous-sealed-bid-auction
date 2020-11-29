@@ -56,11 +56,11 @@ def get_bidders(bidder_file: Path,
             data = {
                 'bidders': list(map(lambda bidder: {
                     'name': bidder.name,
-                    'bid': bidder.bid
+                    'bid': bidder.bid_value
                 }, bidders))
             }
             logging.debug(f'Data to be stored: {data}.')
-            dump(data, file)
+            dump(data, file, indent=4)
 
         logging.debug(f'Bidders: {bidders}.')
         return bidders
