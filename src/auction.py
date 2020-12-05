@@ -218,9 +218,12 @@ class Auction:
             csv_writer.writerows(csv_rows)
             logging.info('Data stored in csv file.')
 
-    def proof_of_concept(self) -> None:
+    def proof_of_concept(self,
+                         show_total_price: bool
+                         ) -> None:
         """
         This method implements the proof of concept.
+        :param show_total_price: Flag indicating total price of auction for each participant should be displayed.
         """
         # --- Deploying Smart Contract --- #
         if not self.__is_deployed:
@@ -401,21 +404,22 @@ class Auction:
                                 self.__auctioneer,
                                 'withdrawDeposit')
         print('Deposits withdrawn.')
-        print('------------')
-        print('| Gas cost |')
-        print('------------')
+        if show_total_price:
+            print('------------')
+            print('| Gas cost|')
+            print('------------')
 
-        if self.__exchange_ratio is None:
-            print(f'Total cost auctioneer: {self.__auctioneer.gas} gas.')
-            for bidder in self.__bidders:
-                print(f'Total cost for bidder {bidder.name}: {bidder.gas} gas.')
+            if self.__exchange_ratio is None:
+                print(f'Total cost auctioneer: {self.__auctioneer.gas} gas.')
+                for bidder in self.__bidders:
+                    print(f'Total cost for bidder {bidder.name}: {bidder.gas} gas.')
 
-        else:
-            print(f'Total cost auctioneer: {self.__auctioneer.gas} gas '
-                  f'= {self.__auctioneer.gas * self.__exchange_ratio:.2f} USD.')
-            for bidder in self.__bidders:
-                print(f'Total cost for bidder {bidder.name}: {bidder.gas} gas ='
-                      f' {bidder.gas * self.__exchange_ratio:.2f} USD.')
+            else:
+                print(f'Total cost auctioneer: {self.__auctioneer.gas} gas '
+                      f'= {self.__auctioneer.gas * self.__exchange_ratio:.2f} USD.')
+                for bidder in self.__bidders:
+                    print(f'Total cost for bidder {bidder.name}: {bidder.gas} gas ='
+                          f' {bidder.gas * self.__exchange_ratio:.2f} USD.')
 
     def __send_transaction(self,
                            transaction,

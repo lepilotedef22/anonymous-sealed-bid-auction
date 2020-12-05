@@ -21,7 +21,7 @@ __date__ = '2020.3.4'
 if __name__ == '__main__':
     # Args parsing (credit: https://docs.python.org/fr/3/howto/argparse.html)
     parser = ArgumentParser(
-        description='Anonymous hidden bidding proof of concept launcher'
+        description='Anonymous Sealed-Bid Auction Proof of Concept launcher'
     )
     parser.add_argument(
         '-l',
@@ -60,6 +60,12 @@ if __name__ == '__main__':
         help='Functions to store in the output file',
         nargs='+'
     )
+    parser.add_argument(
+        '-p',
+        '--price',
+        action='store_true',
+        help='Displays the total price of the auction for each participant at the end of the simulation.'
+    )
     args = vars(parser.parse_args())
     # Logging (credit: https://docs.python.org/3/howto/logging.html)
     numeric_level = getattr(logging, args['log'].upper(), None)
@@ -72,6 +78,7 @@ if __name__ == '__main__':
     mode = args['mode']
     output_file = args['output']
     functions = args['functions']
+    show_price = args['price']
     auction = Auction()
     try:
         if mode == 'deploy':
@@ -81,7 +88,7 @@ if __name__ == '__main__':
             auction.estimate_gas(output_file, functions)
 
         elif mode == 'poc':
-            auction.proof_of_concept()
+            auction.proof_of_concept(show_price)
 
     except ConnectionError as e:
         print('Cannot connect to Ganache.')
