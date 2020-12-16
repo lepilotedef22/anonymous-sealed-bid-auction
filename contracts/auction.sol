@@ -6,10 +6,10 @@ contract Auction {
     /* Struct */
     struct Bidder {
         bytes c;
-        bytes sig;
-        bytes ring;
-        bytes tau_1;
-        bytes tau_2;
+        bytes csig;
+        bytes cring;
+        bytes ctau_1;
+        bytes ctau_2;
     }
 
     /* State variables */
@@ -75,25 +75,20 @@ contract Auction {
         totalDeposit += msg.value;
     }
 
-    function placeBid(bytes memory _c, bytes memory _sig, bytes memory _ring) public payable enoughDeposit beforeT1 {
+    function placeBid(bytes memory _c, bytes memory _csig, bytes memory _cring,
+                      bytes memory _ctau_1, bytes memory _ctau2) public payable enoughDeposit beforeT1 {
         deposit[msg.sender] = msg.value;
         totalDeposit += msg.value;
         bidders[msg.sender].c = _c;
-        bidders[msg.sender].sig = _sig;
-        bidders[msg.sender].ring = _ring;
+        bidders[msg.sender].csig = _csig;
+        bidders[msg.sender].cring = _cring;
+        bidders[msg.sender].ctau_1 = _ctau_1;
+        bidders[msg.sender].ctau_2 = _ctau2;
         emit newBidder(msg.sender);
-    }
-
-    function openBid(bytes memory _tau_1) public beforeT2 {
-        bidders[msg.sender].tau_1 = _tau_1;
     }
 
     function announceWinningCommitment(bytes memory _winningCommitment) public beforeT2 {
         winningCommitment = _winningCommitment;
-    }
-
-    function openIdentity(bytes memory _tau_2) public beforeT3 {
-        bidders[msg.sender].tau_2 = _tau_2;
     }
 
     function withdrawDeposit() public afterT3 {
