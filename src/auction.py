@@ -247,10 +247,10 @@ class Auction:
             indices[output['name']] = index
 
         c_index = indices['c']
-        sig_index = indices['sig']
-        ring_index = indices['ring']
-        tau_1_index = indices['tau_1']
-        tau_2_index = indices['tau_2']
+        csig_index = indices['csig']
+        cring_index = indices['cring']
+        ctau_1_index = indices['ctau_1']
+        ctau_2_index = indices['ctau_2']
 
         # --- Setting up filters --- #
         new_bidder_filter = self.__contract.events.newBidder.createFilter(fromBlock='latest')

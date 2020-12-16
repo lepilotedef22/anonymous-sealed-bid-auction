@@ -42,6 +42,7 @@ class Bidder(Participant):
         self.bid_value = bid
         self.auctioneer_pub_key = None
         self.ring = None
+        self.cring = None
         self.__s = None
         self.c = None
         self.__d = None
@@ -55,8 +56,11 @@ class Bidder(Participant):
         self.c2 = None
         self.d2 = None
         self.sig = None
+        self.csig = None
         self.tau_1 = None
+        self.ctau_1 = None
         self.tau_2 = None
+        self.ctau_2 = None
         logging.info('Bidder created.')
 
     # --------------------------------------------------- METHODS --------------------------------------------------- #
@@ -78,7 +82,7 @@ class Bidder(Participant):
         logging.info(f'Ring of size {len(self.ring)} created. s = {self.__s}.')
         logging.debug(f'Ring: {self.ring}.')
 
-    def bid(self) -> Tuple[bytes, bytes]:
+    def bid(self) -> None:
         """
         :return: Commitments and signatures to the bid to be placed.
         """
@@ -106,7 +110,6 @@ class Bidder(Participant):
         self.sig = concatenate(self.sigma, self.c1, self.c2)
         self.tau_1 = concatenate(self.C1, self.d1)
         self.tau_2 = concatenate(self.C2, self.d2)
-        return self.c, self.sig
 
     def export_ring(self) -> bytes:
         """
