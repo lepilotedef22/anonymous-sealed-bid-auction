@@ -84,7 +84,7 @@ class Bidder(Participant):
 
     def bid(self) -> None:
         """
-        :return: Commitments and signatures to the bid to be placed.
+        Computes the
         """
         logging.info('Generating bid.')
         logging.info('Computing c and d.')
@@ -108,10 +108,14 @@ class Bidder(Participant):
         self.c2, self.d2 = commit(self.C2)
         logging.info('Bid generated.')
         self.sig = concatenate(self.sigma, self.c1, self.c2)
+        self.csig = commit(self.sig)
         self.tau_1 = concatenate(self.C1, self.d1)
+        self.ctau_1 = commit(self.tau_1)
         self.tau_2 = concatenate(self.C2, self.d2)
+        self.ctau_2 = commit(self.tau_2)
+        self.cring = commit(self.__export_ring())
 
-    def export_ring(self) -> bytes:
+    def __export_ring(self) -> bytes:
         """
         :return: The concatenation of the keys of the ring.
         """

@@ -286,7 +286,7 @@ class Auction:
         # --- Placing bids --- #
         for bidder in self.__bidders:
             logging.info(f'Placing bid for bidder {bidder}.')
-            c, sig = bidder.bid()
+            bidder.bid()
             tx = {
                 'from': bidder.address,
                 'value': Auction.DEPOSIT
@@ -294,19 +294,7 @@ class Auction:
             self.__send_transaction(tx,
                                     bidder,
                                     'placeBid',
-                                    c, sig, bidder.export_ring())
-
-        # --- Opening bids --- #
-        for bidder in self.__bidders:
-            logging.info(f'Sending tau_1 for bidder {bidder}.')
-            tau_1 = bidder.tau_1
-            tx = {
-                'from': bidder.address
-            }
-            self.__send_transaction(tx,
-                                    bidder,
-                                    'openBid',
-                                    tau_1)
+                                    bidder.c, bidder.csig[0], bidder.cring[0], bidder.ctau_1[0], bidder.ctau_2[0])
 
         for event in new_bidder_filter.get_new_entries():
             new_bidder_address = event['args']['newBidderAddress']
@@ -314,13 +302,20 @@ class Auction:
             logging.info(f'Catching event {event_name} from bidder at {new_bidder_address}.')
             self.__auctioneer.bidders[new_bidder_address] = None
 
-        for bidder_address in self.__auctioneer.bidders.keys():
-            bidder = self.__call('bidders', bidder_address)
-            c = bidder[c_index]
-            sig = bidder[sig_index]
-            tau_1 = bidder[tau_1_index]
-            ring = list(map(lambda key: RSA.importKey(key), parse(bidder[ring_index])))
-            logging.info(f'Opening bid for bidder at {bidder_address}.')
+        for bidder in self.__bidders:
+            address = bidder.address
+            sig = bidder.sig
+            dsig = bidder.csig[1]
+            tau_1 = bidder.tau_1
+            dtau_1 = bidder.ctau_1[1]
+            ring = bidder.ring
+            dring = bidder.cring[1]
+            bidder_blockchain = self.__call('bidders', address)
+            c = bidder_blockchain[c_index]
+            csig = bidder_blockchain[csig_index]
+            cring = bidder_blockchain[cring_index]
+            ctau_1 = bidder_blockchain[ctau_1_index]
+            logging.info(f'Opening bid for bidder at {address}.')
             if self.__auctioneer.bid_opening(bidder_address, ring, c, sig, tau_1):
                 logging.info(f'Bid opening successful for bidder at {bidder_address}.')
 
