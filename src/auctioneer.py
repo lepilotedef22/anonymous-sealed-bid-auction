@@ -42,79 +42,110 @@ class Auctioneer(Participant):
 
     def bid_opening(self,
                     address: str,
-                    ring: List[RSA.RsaKey],
+                    ring: bytes,
+                    dring: bytes,
+                    cring: bytes,
                     c: bytes,
                     sig: bytes,
-                    tau_1: bytes
+                    dsig: bytes,
+                    csig: bytes,
+                    tau_1: bytes,
+                    dtau_1: bytes,
+                    ctau_1: bytes
                     ) -> bool:
         """
         Opens the bid value for bidder at address and stores it.
         :param address: Address of the bidder.
         :param ring: Ring of public keys used by the bidder for the Ring Signature.
+        :param dring: Decommitment to the ring.
+        :param cring: Commitment to the ring.
         :param c: Commitment to the bid.
-        :param sig: Ring Signature to the bid.
+        :param sig: sig to the bid.
+        :param dsig: Decommitment to the sig.
+        :param csig: Commiment to the sig.
         :param tau_1: Bid opening token.
+        :param dtau_1: Decommitment to tau_1.
+        :param ctau_1: Commitment to tau_1.
         :return: Whether the bid opening was successful.
         """
         logging.info(f'Opening bid for bidder at {address}.')
         status = False
-        logging.info('Parsing sigma.')
-        sigma, c1, c2 = parse(sig)
-        if self.verify(c, sigma, ring):
-            logging.info('Signature sigma successfully verified.')
-            C1, d1 = parse(tau_1)
-            if commit_verify(C1, d1, c1):
-                logging.info('Commitment C1 successfully verified.')
-                m1 = self.decrypt(C1)
-                logging.info('Cipher text C1 decrypted.')
-                logging.info('Parsing m1.')
-                c_tilde, sigma_tilde, Sigma, bid, d = parse(m1)
-                if c_tilde == c and sigma_tilde == sigma:
-                    if self.verify(c + sigma, Sigma, ring):
-                        logging.info('Signature Sigma verified.')
-                        if commit_verify(bid, d, c):
-                            logging.info('Commitment to bid successfully verified.')
-                            logging.info('Storing bid and validating opening.')
-                            self.bidders[address] = {
-                                'bid': int.from_bytes(bid, byteorder),
-                                'com': c,
-                                'decom': d
-                            }
-                            logging.info(f'Bid: {int.from_bytes(bid, byteorder)}.')
-                            status = True
+        if commit_verify(sig, dsig, csig):
+            logging.info('sif commitment successfully verified.')
+            logging.info('Parsing sigma.')
+            sigma, c1, c2 = parse(sig)
+            if commit_verify(ring, dring, cring):
+                logging.info('Ring commitment successfully verified.')
+                ring = list(map(lambda key: RSA.importKey(key), parse(ring)))
+                if self.verify(c, sigma, ring):
+                    logging.info('Signature sigma successfully verified.')
+                    if commit_verify(tau_1, dtau_1, ctau_1):
+                        logging.info('tau_1 commitment successfully verified.')
+                        C1, d1 = parse(tau_1)
+                        if commit_verify(C1, d1, c1):
+                            logging.info('Commitment C1 successfully verified.')
+                            m1 = self.decrypt(C1)
+                            logging.info('Cipher text C1 decrypted.')
+                            logging.info('Parsing m1.')
+                            c_tilde, sigma_tilde, Sigma, bid, d = parse(m1)
+                            if c_tilde == c and sigma_tilde == sigma:
+                                if self.verify(c + sigma, Sigma, ring):
+                                    logging.info('Signature Sigma verified.')
+                                    if commit_verify(bid, d, c):
+                                        logging.info('Commitment to bid successfully verified.')
+                                        logging.info('Storing bid and validating opening.')
+                                        self.bidders[address] = {
+                                            'bid': int.from_bytes(bid, byteorder),
+                                            'com': c,
+                                            'decom': d
+                                        }
+                                        logging.info(f'Bid: {int.from_bytes(bid, byteorder)}.')
+                                        status = True
 
         return status
 
     def identity_opening(self,
                          sig: bytes,
-                         tau_2
+                         dsig: bytes,
+                         csig: bytes,
+                         tau_2: bytes,
+                         dtau_2: bytes,
+                         ctau_2: bytes
                          ) -> bool:
         """
         Opens the identity of the winning bidder, checks its validity and stores it.
         :param sig: Ring signature.
+        :param dsig: Decommitment to sig.
+        :param csig: Commitment to sig.
         :param tau_2: Identity opening token.
+        :param dtau_2: Decommitment to tau_2.
+        :param ctau_2: Commitment to tau_2.
         :return: Verification status of the opening.
         """
         logging.info('Opening identity if winning bidder.')
         status = False
-        logging.info('Parsing sigma.')
-        sigma, c1, c2 = parse(sig)
-        logging.info('Parsing tau_2.')
-        C2, d2 = parse(tau_2)
-        if commit_verify(C2, d2, c2):
-            logging.info('Commitment c2 successfully verified.')
-            m2 = self.decrypt(C2)
-            logging.info('C2 decrypted.')
-            c, pub_key_winner, pub_key_auctioneer, sig, Sigma, delta = parse(m2)
-            pub_key_winner = RSA.importKey(pub_key_winner)
-            pub_key_auctioneer = RSA.importKey(pub_key_auctioneer)
-            if c == self.winning_com:
-                logging.info('Commitment c successfully verified.')
-                if self.verify(c + sig + Sigma, delta, [pub_key_winner, pub_key_auctioneer]):
-                    logging.info('Signature delta successfully verified.')
-                    self.winning_bidder = pub_key_winner
-                    logging.info(f'Winning bidder: {self.winning_bidder}.')
-                    status = True
+        if commit_verify(sig, dsig, csig):
+            logging.info('Commitment to sig successfully verified.')
+            logging.info('Parsing sigma.')
+            sigma, c1, c2 = parse(sig)
+            if commit_verify(tau_2, dtau_2, ctau_2):
+                logging.info('Commitment to tau_2 successfully verified.')
+                logging.info('Parsing tau_2.')
+                C2, d2 = parse(tau_2)
+                if commit_verify(C2, d2, c2):
+                    logging.info('Commitment c2 successfully verified.')
+                    m2 = self.decrypt(C2)
+                    logging.info('C2 decrypted.')
+                    c, pub_key_winner, pub_key_auctioneer, sig, Sigma, delta = parse(m2)
+                    pub_key_winner = RSA.importKey(pub_key_winner)
+                    pub_key_auctioneer = RSA.importKey(pub_key_auctioneer)
+                    if c == self.winning_com:
+                        logging.info('Commitment c successfully verified.')
+                        if self.verify(c + sig + Sigma, delta, [pub_key_winner, pub_key_auctioneer]):
+                            logging.info('Signature delta successfully verified.')
+                            self.winning_bidder = pub_key_winner
+                            logging.info(f'Winning bidder: {self.winning_bidder}.')
+                            status = True
 
         return status
 

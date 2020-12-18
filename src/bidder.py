@@ -42,6 +42,7 @@ class Bidder(Participant):
         self.bid_value = bid
         self.auctioneer_pub_key = None
         self.ring = None
+        self.bytes_ring = None
         self.cring = None
         self.__s = None
         self.c = None
@@ -79,6 +80,7 @@ class Bidder(Participant):
         shuffle(self.ring)
         self.__s = self.ring.index(self.public_key)
         self.ring[self.__s] = self._RSA_key
+        self.bytes_ring = self.__export_ring()
         logging.info(f'Ring of size {len(self.ring)} created. s = {self.__s}.')
         logging.debug(f'Ring: {self.ring}.')
 
@@ -113,7 +115,7 @@ class Bidder(Participant):
         self.ctau_1 = commit(self.tau_1)
         self.tau_2 = concatenate(self.C2, self.d2)
         self.ctau_2 = commit(self.tau_2)
-        self.cring = commit(self.__export_ring())
+        self.cring = commit(self.bytes_ring)
 
     def __export_ring(self) -> bytes:
         """

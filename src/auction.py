@@ -13,12 +13,10 @@ from sys import byteorder
 from typing import Optional, Any, Union, List
 from hexbytes import HexBytes
 from cryptocompare import get_price
-from Crypto.PublicKey import RSA
 from csv import writer
 
 from src.auctioneer import Auctioneer
 from src.utils.file_helper import get_bidders
-from src.utils.crypto import parse
 from src.participant import Participant
 
 
@@ -308,7 +306,7 @@ class Auction:
             dsig = bidder.csig[1]
             tau_1 = bidder.tau_1
             dtau_1 = bidder.ctau_1[1]
-            ring = bidder.ring
+            ring = bidder.bytes_ring
             dring = bidder.cring[1]
             bidder_blockchain = self.__call('bidders', address)
             c = bidder_blockchain[c_index]
@@ -316,19 +314,19 @@ class Auction:
             cring = bidder_blockchain[cring_index]
             ctau_1 = bidder_blockchain[ctau_1_index]
             logging.info(f'Opening bid for bidder at {address}.')
-            if self.__auctioneer.bid_opening(bidder_address, ring, c, sig, tau_1):
-                logging.info(f'Bid opening successful for bidder at {bidder_address}.')
+            if self.__auctioneer.bid_opening(address, ring, dring, cring, c, sig, dsig, csig, tau_1, dtau_1, ctau_1):
+                logging.info(f'Bid opening successful for bidder at {address}.')
 
             else:
-                logging.info(f'Bid opening failed, punishing bidder at {bidder_address}.')
-                self.__auctioneer.bidders.pop(bidder_address, None)
+                logging.info(f'Bid opening failed, punishing bidder at {address}.')
+                self.__auctioneer.bidders.pop(address, None)
                 tx = {
                     'from': self.__auctioneer.address
                 }
                 self.__send_transaction(tx,
                                         self.__auctioneer,
                                         'punishBidder',
-                                        bidder_address)
+                                        address)
 
         # --- Getting winning bid --- #
         logging.info('Getting winning commitment.')
@@ -345,25 +343,20 @@ class Auction:
                                 'announceWinningCommitment',
                                 winning_commitment)
 
+        winning_bidder = None
         for bidder in self.__bidders:
             winning_commitment = self.__call('winningCommitment')
             if bidder.c == winning_commitment:
                 logging.info(f'Bidder {bidder} is winning bidder.')
-                tx = {
-                    'from': bidder.address
-                }
-                self.__send_transaction(tx,
-                                        bidder,
-                                        'openIdentity',
-                                        bidder.tau_2)
+                winning_bidder = bidder
                 break
 
         logging.info('Getting sig and tau_2 for winning bidder.')
-        winning_bidder = self.__call('bidders', self.__auctioneer.winning_address)
-        sig = winning_bidder[sig_index]
-        tau_2 = winning_bidder[tau_2_index]
+        winning_bidder_blockchain = self.__call('bidders', self.__auctioneer.winning_address)
+        sig, dsig, csig = winning_bidder.sig, winning_bidder.csig[1], winning_bidder_blockchain[csig_index]
+        tau_2, dtau_2, ctau_2 = winning_bidder.tau_2, winning_bidder.ctau_2[1], winning_bidder_blockchain[ctau_2_index]
 
-        if self.__auctioneer.identity_opening(sig, tau_2):
+        if self.__auctioneer.identity_opening(sig, dsig, csig, tau_2, dtau_2, ctau_2):
             print('Identity of winning bidder successfully verified.')
             print(f"Winning bidder's address: {self.__auctioneer.winning_address}.")
             print(f"Winning bidder's public key: {self.__auctioneer.winning_bidder}.")
