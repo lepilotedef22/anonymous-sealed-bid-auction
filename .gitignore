@@ -6,3 +6,4 @@ src/utils/__pycache__
 tests/__pycache__
 compile/out.json
 *.csv
+bidders.json
