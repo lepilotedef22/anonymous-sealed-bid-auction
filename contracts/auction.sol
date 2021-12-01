@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 // Author: Denis Verstraeten
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.10;
 
 contract Auction {
     /* Struct */
@@ -97,7 +97,7 @@ contract Auction {
     }
 
     function withdrawDeposit() public afterT3 {
-        msg.sender.transfer(deposit[msg.sender]);
+        payable(msg.sender).transfer(deposit[msg.sender]);
         totalDeposit -= deposit[msg.sender];
         deposit[msg.sender] = 0;
     }
